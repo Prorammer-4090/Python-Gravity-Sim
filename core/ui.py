@@ -212,6 +212,8 @@ class UIManager:
     def __init__(self, window):
         self.window = window
         self.elements = []
+        self.cursor_scale = 1
+        self.drag_weight = 0
         self.ui_surface = pygame.Surface(window.screenSize, pygame.SRCALPHA)
     
     def add_element(self, element):
@@ -229,7 +231,15 @@ class UIManager:
         # Render all elements
         for element in self.elements:
             element.render(self.ui_surface)
-        pygame.draw.circle(self.ui_surface, (0, 255, 0), self.window.input.get_mouse_pos(), radius=10, width=1)
+            
+        if self.window.input.mouse_wheel_y != 0:
+            value = self.window.input.mouse_wheel_y
+            print(value)
+            if value > 0:
+                self.cursor_scale += round(value/10, 2)
+            elif value < 0:
+                self.cursor_scale += round(value/10, 2)
+        pygame.draw.circle(self.ui_surface, (0, 255, 0), self.window.input.get_mouse_pos(), radius=10*self.cursor_scale, width=1)
         if self.window.input.is_dragging and self.window.input.drag_start_pos:
             pygame.draw.line(
                 self.ui_surface,
@@ -237,15 +247,20 @@ class UIManager:
                 self.window.input.drag_start_pos,
                 self.window.input.get_mouse_pos(),
                 2
-            )    
+            )
+                
             # Draw arrow head at drag start position
             start_pos = self.window.input.drag_start_pos
             mouse_pos = self.window.input.get_mouse_pos()
             
-            # Calculate angle between start position and mouse position
-            print(start_pos)
+            
             dx = mouse_pos[0] - start_pos[0]
             dy = mouse_pos[1] - start_pos[1]
+            
+            self.drag_weight = round((math.sqrt(dx**2 + dy**2) / 50), 2)
+            print(self.drag_weight)
+            
+            # Calculate angle between start position and mouse position
             angle = math.atan2(dy, dx)
             
             # Arrow head size

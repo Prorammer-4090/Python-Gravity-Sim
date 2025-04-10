@@ -10,6 +10,10 @@ class GravitySimApp(Window):
             Label(10, 10, "FPS: 0", color=(255, 255, 0), font_family="Silkscreen-Regular.ttf")
         )
         
+        self.scale_label = self.ui_manager.add_element(
+            Label(600, 10, "Scale: 1", color=(255, 255, 0), font_family="Silkscreen-Regular.ttf")
+        )
+        
         self.pause_button = self.ui_manager.add_element(
             Button(10, 40, 100, 30, "Pause", self.toggle_pause, font_family="Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
         )
@@ -35,6 +39,9 @@ class GravitySimApp(Window):
         # Update FPS display
         fps = self.clock.get_fps()
         self.fps_label.text = f"FPS: {fps:.1f}"
+        
+        cursor_scale = self.ui_manager.cursor_scale
+        self.scale_label.text = f"Scale: {cursor_scale:.2f}"
         
         # Skip physics updates when paused
         if hasattr(self, 'paused') and self.paused:
