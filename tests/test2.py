@@ -64,6 +64,7 @@ class Cubeapp(Window):
         )
         
         self.paused = False
+        self.reset = False
     
     def toggle_pause(self):
         self.paused = not self.paused
@@ -72,7 +73,7 @@ class Cubeapp(Window):
     
     def reset_simulation(self):
         # Add your reset code here
-        
+        self.reset = True
         print("Simulation reset")
             
 
@@ -160,6 +161,9 @@ class Cubeapp(Window):
         # Skip physics updates when paused
         if hasattr(self, 'paused') and self.paused:
             return
+        if self.reset:
+            self.theta = 0
+            self.reset = False
             
         # Calculate camera movement vectors
         # Direction vector from camera to target

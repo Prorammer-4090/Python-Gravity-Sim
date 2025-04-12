@@ -1,4 +1,4 @@
-from geometry.parametricGeo import ParametricGeometry
+from parametricGeo import ParametricGeometry
 
 class PlaneGeometry(ParametricGeometry):
 
