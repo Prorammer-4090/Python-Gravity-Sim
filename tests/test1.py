@@ -7,19 +7,19 @@ class GravitySimApp(Window):
         
         # Add some UI elements
         self.fps_label = self.ui_manager.add_element(
-            Label(10, 10, "FPS: 0", color=(255, 255, 0), font_family="Fonts/Silkscreen-Regular.ttf")
+            Label(10, 10, "FPS: 0", color=(255, 255, 0), font_family="fonts/Silkscreen-Regular.ttf")
         )
         
         self.scale_label = self.ui_manager.add_element(
-            Label(600, 10, "Scale: 1", color=(255, 255, 0), font_family="Fonts/Silkscreen-Regular.ttf")
+            Label(600, 10, "Scale: 1", color=(255, 255, 0), font_family="fonts/Silkscreen-Regular.ttf")
         )
         
         self.pause_button = self.ui_manager.add_element(
-            Button(10, 40, 100, 30, "Pause", self.toggle_pause, font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
+            Button(10, 40, 100, 30, "Pause", self.toggle_pause, font_family="fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
         )
         
         self.reset_button = self.ui_manager.add_element(
-            Button(120, 40, 100, 30, "Reset", self.reset_simulation, font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
+            Button(120, 40, 100, 30, "Reset", self.reset_simulation, font_family="fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
         )
         
         self.paused = False

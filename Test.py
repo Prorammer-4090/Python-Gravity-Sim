@@ -29,11 +29,19 @@ void main() {
 # Fragment shader
 FRAGMENT_SHADER = """
 #version 330 core
+
 in vec3 fragColor;
 out vec4 outColor;
 
+uniform float time;
+
 void main() {
-    outColor = vec4(fragColor, 1.0);
+    // Use fragColor as phase shift so each vertex gets a unique color pattern
+    float r = abs(tan(time + fragColor.r * 10.0));
+    float g = abs(cos(time + fragColor.g * 10.0));
+    float b = abs(sin(time + fragColor.b * 10.0));
+
+    outColor = vec4(r, g, b, 1.0);
 }
 """
 
@@ -48,22 +56,23 @@ class Cubeapp(Window):
         
         # Add some UI elements
         self.fps_label = self.ui_manager.add_element(
-            Label(10, 10, "FPS: 0", color=(255, 255, 0), font_family="Silkscreen-Regular.ttf")
+            Label(10, 10, "FPS: 0", color=(255, 255, 0), font_family="Fonts/Silkscreen-Regular.ttf")
         )
         
         self.scale_label = self.ui_manager.add_element(
-            Label(600, 10, "Scale: 1", color=(255, 255, 0), font_family="Silkscreen-Regular.ttf")
+            Label(600, 10, "Scale: 1", color=(255, 255, 0), font_family="Fonts/Silkscreen-Regular.ttf")
         )
         
         self.pause_button = self.ui_manager.add_element(
-            Button(10, 40, 100, 30, "Pause", self.toggle_pause, font_family="Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
+            Button(10, 40, 100, 30, "Pause", self.toggle_pause, font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
         )
         
         self.reset_button = self.ui_manager.add_element(
-            Button(120, 40, 100, 30, "Reset", self.reset_simulation, font_family="Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
+            Button(120, 40, 100, 30, "Reset", self.reset_simulation, font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255))
         )
         
         self.paused = False
+        self.reset = False
     
     def toggle_pause(self):
         self.paused = not self.paused
@@ -72,6 +81,7 @@ class Cubeapp(Window):
     
     def reset_simulation(self):
         # Add your reset code here
+        self.reset = True
         print("Simulation reset")
             
 
@@ -89,27 +99,14 @@ class Cubeapp(Window):
         )
         glUseProgram(self.shader)
         
-        # Create cube
-        vertices = np.array([
-            # position        # color
-            1, -1, -1,  0, 0, 0,   
-            1,  1, -1,  0, 0, 1,
-            -1,  1, -1,  0, 1, 0,
-            -1, -1, -1,  0, 1, 1,
-            1, -1,  1,  1, 0, 0,
-            1,  1,  1,  1, 0, 1,
-            -1, -1,  1,  1, 1, 0,
-            -1,  1,  1,  1, 1, 1,
-        ], dtype=np.float32)
+        # Vertices: x, y, z, r, g, b
 
-        indices = np.array([
-            0, 1, 2, 2, 3, 0,
-            3, 2, 7, 7, 6, 3,
-            6, 7, 5, 5, 4, 6,
-            4, 5, 1, 1, 0, 4,
-            1, 5, 7, 7, 2, 1,
-            4, 0, 3, 3, 6, 4
-        ], dtype=np.uint32)
+        new_vertices, new_indices = self.generate_sphere(subdivisions=2)
+
+        # Final arrays
+        vertices = np.array(new_vertices, dtype=np.float32).reshape(-1)
+        indices = np.array(new_indices, dtype=np.uint32)
+
 
         self.vao = glGenVertexArrays(1)
         glBindVertexArray(self.vao)
@@ -159,6 +156,9 @@ class Cubeapp(Window):
         # Skip physics updates when paused
         if hasattr(self, 'paused') and self.paused:
             return
+        if self.reset:
+            self.theta = 0
+            self.reset = False
             
         # Calculate camera movement vectors
         # Direction vector from camera to target
@@ -201,22 +201,100 @@ class Cubeapp(Window):
         
         # Update rotation angle based on time and rotation speed (degrees per second)
         delta_time = 1.0 / max(self.clock.get_fps(), 1.0)  # Get seconds per frame, avoid division by zero
+        if self.theta == 360:
+            self.theta == 0
         self.theta = (self.theta + self.rotation_speed * delta_time)
 
     def render_opengl(self):
-        # First activate the shader program before setting uniforms
         glUseProgram(self.shader)
-        
+
+        # Update time uniform
+        t = pg.time.get_ticks() / 1000.0  # Get time in seconds
+        time_loc = glGetUniformLocation(self.shader, "time")
+        glUniform1f(time_loc, t)
+
         # Apply view matrix
         glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.view.astype(np.float32))
-        
+
         # Create and apply model matrix with rotation
         model = Matrix44.from_y_rotation(np.radians(self.theta)) @ Matrix44.from_x_rotation(np.radians(self.theta * 0.3))
         glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, model.astype(np.float32))
-        
-        # Draw the cube
+
         glBindVertexArray(self.vao)
         glDrawElements(GL_TRIANGLES, self.index_count, GL_UNSIGNED_INT, None)
+
+    def normalize(self, vertex):
+        """Normalize position vector, keep RGB intact."""
+        pos = vertex[:3]
+        rgb = vertex[3:]
+        norm = np.linalg.norm(pos)
+        return np.concatenate((pos / norm, rgb))
+
+    def midpoint(self, v1, v2):
+        """Compute midpoint and normalize for spherical shape."""
+        mid = (v1 + v2) / 2
+        return self.normalize(mid)
+
+    def single_subdivision(self, vertices, indices):
+        """Subdivide each triangle into 4 and return new vertices and indices."""
+        vertex_list = vertices.reshape(-1, 6).tolist()
+        new_indices = []
+        midpoint_cache = {}
+
+        def get_midpoint_idx(i1, i2):
+            key = tuple(sorted((i1, i2)))
+            if key in midpoint_cache:
+                return midpoint_cache[key]
+            v1 = np.array(vertex_list[i1])
+            v2 = np.array(vertex_list[i2])
+            mid = self.midpoint(v1, v2)
+            vertex_list.append(mid.tolist())
+            idx = len(vertex_list) - 1
+            midpoint_cache[key] = idx
+            return idx
+
+        for i in range(0, len(indices), 3):
+            i0, i1, i2 = indices[i:i+3]
+            a = get_midpoint_idx(i0, i1)
+            b = get_midpoint_idx(i1, i2)
+            c = get_midpoint_idx(i2, i0)
+            new_indices += [
+                i0, a, c,
+                i1, b, a,
+                i2, c, b,
+                a, b, c
+            ]
+
+        return np.array(vertex_list, dtype=np.float32).reshape(-1), np.array(new_indices, dtype=np.uint32)
+
+    def generate_sphere(self, subdivisions=1):
+        # Initial octahedron (6 vertices, 8 triangles)
+        vertices = np.array([
+            # x, y, z,       r, g, b
+            0.0,  1.0,  0.0,  1.0, 0.0, 0.0,  # top
+            1.0,  0.0,  0.0,  0.0, 1.0, 0.0,  # +x
+            0.0,  0.0,  1.0,  0.0, 0.0, 1.0,  # +z
+            -1.0,  0.0,  0.0,  1.0, 1.0, 0.0,  # -x
+            0.0,  0.0, -1.0,  0.0, 1.0, 1.0,  # -z
+            0.0, -1.0,  0.0,  1.0, 0.0, 1.0,  # bottom
+        ], dtype=np.float32)
+
+        indices = np.array([
+            0, 1, 2,
+            0, 2, 3,
+            0, 3, 4,
+            0, 4, 1,
+            5, 2, 1,
+            5, 3, 2,
+            5, 4, 3,
+            5, 1, 4,
+        ], dtype=np.uint32)
+
+        for _ in range(subdivisions):
+            vertices, indices = self.single_subdivision(vertices, indices)
+
+        return vertices, indices
+
 
 
 if __name__ == '__main__':

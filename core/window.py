@@ -16,7 +16,7 @@ class Window:
         display_flags = pygame.DOUBLEBUF | pygame.OPENGL
         
         pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES, 1)
-        pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES, 4)
+        pygame.display.gl_set_attribute(pygame.GL_MULTISAMPLESAMPLES, 8)
         
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE)
         
