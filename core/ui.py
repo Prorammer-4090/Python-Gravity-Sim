@@ -1,20 +1,26 @@
 import pygame
 import math
+from core.logger import logger
 
 def normalize_color(color):
     """Convert various color formats to PyGame compatible format"""
-    if isinstance(color, tuple) or isinstance(color, list):
-        if len(color) == 4:
-            # RGBA format - return both color and alpha
-            r, g, b, a = color
-            return pygame.Color(r, g, b), a
-        elif len(color) == 3:
-            # RGB format
-            return pygame.Color(color[0], color[1], color[2]), 255
-        else:
-            print(f"Warning: Invalid color format {color}, using default")
-            return pygame.Color(255, 255, 255), 255
-    return color, 255  # Already a PyGame Color or other compatible format
+    try:
+        if isinstance(color, tuple) or isinstance(color, list):
+            if len(color) == 4:
+                # RGBA format - return both color and alpha
+                r, g, b, a = color
+                return pygame.Color(r, g, b), a
+            elif len(color) == 3:
+                # RGB format
+                return pygame.Color(color[0], color[1], color[2]), 255
+            else:
+                error_msg = f"Invalid color format {color}, using default"
+                logger.log_message(error_msg, "WARNING")
+                return pygame.Color(255, 255, 255), 255
+        return color, 255  # Already a PyGame Color or other compatible format
+    except Exception as e:
+        logger.log_error(e, f"Failed to normalize color: {color}")
+        return pygame.Color(255, 255, 255), 255  # Return default white color
 
 
 class UIElement:
@@ -34,39 +40,43 @@ class Button(UIElement):
         self.text = text
         self.callback = callback
 
-        
-        # Ensure colors are properly formatted for PyGame
-        self.color, self.color_alpha = normalize_color(color)
-        self.hover_color, self.hover_alpha = normalize_color(hover_color)
-        self.current_color = self.color
-        self.text_color, self.text_alpha = normalize_color(text_color)
-        
-        # Create separate rectangles for 3D effect
-        self.top_rect = pygame.Rect(x, y, width, height)
-        self.bottom_rect = pygame.Rect(x, y + elevation, width, height)
-        self.elevation = elevation
-        self.dynamic_elevation = elevation
-        self.original_y_pos = y
-        
-        self.top_color = self.current_color
-        self.bottom_color = pygame.Color(
-            max(0, self.current_color.r - 40),
-            max(0, self.current_color.g - 40),
-            max(0, self.current_color.b - 40)
-        )
-        
-        # Set alpha from color if provided
-        if self.color_alpha < 255:
-            self.alpha = self.color_alpha
-        
-        # Load font
         try:
-            self.font = pygame.font.Font(font_family, 20) if font_family else pygame.font.SysFont('Arial', 24)
-        except:
-            print(f"Warning: Could not load font '{font_family}', falling back to default")
-            self.font = pygame.font.SysFont('Arial', 20)
+            # Ensure colors are properly formatted for PyGame
+            self.color, self.color_alpha = normalize_color(color)
+            self.hover_color, self.hover_alpha = normalize_color(hover_color)
+            self.current_color = self.color
+            self.text_color, self.text_alpha = normalize_color(text_color)
             
-        self.is_pressed = False  # Track press state
+            # Create separate rectangles for 3D effect
+            self.top_rect = pygame.Rect(x, y, width, height)
+            self.bottom_rect = pygame.Rect(x, y + elevation, width, height)
+            self.elevation = elevation
+            self.dynamic_elevation = elevation
+            self.original_y_pos = y
+            
+            self.top_color = self.current_color
+            self.bottom_color = pygame.Color(
+                max(0, self.current_color.r - 40),
+                max(0, self.current_color.g - 40),
+                max(0, self.current_color.b - 40)
+            )
+            
+            # Set alpha from color if provided
+            if self.color_alpha < 255:
+                self.alpha = self.color_alpha
+            
+            # Load font
+            try:
+                self.font = pygame.font.Font(font_family, 20) if font_family else pygame.font.SysFont('Arial', 24)
+            except Exception as e:
+                error_msg = f"Could not load font '{font_family}', falling back to default"
+                logger.log_error(e, error_msg)
+                self.font = pygame.font.SysFont('Arial', 20)
+                
+            self.is_pressed = False  # Track press state
+        except Exception as e:
+            logger.log_error(e, f"Failed to initialize Button at ({x}, {y})")
+            raise
         
     def update(self, input):
         mouse_pos = pygame.mouse.get_pos()
@@ -103,82 +113,91 @@ class Button(UIElement):
         if not self.visible:
             return
         
-        # For transparency effects, we can create a temporary surface
-        if hasattr(self, 'alpha') and self.alpha < 255:
-            # Create a temporary surface with per-pixel alpha
-            temp_surface = pygame.Surface((self.rect.width, self.rect.height + self.elevation), pygame.SRCALPHA)
-            
-            # Extract RGB from PyGame Color object and create proper RGBA tuple
-            rgba_color = (self.current_color.r, self.current_color.g, self.current_color.b, self.alpha)
-            bottom_rgba = (self.bottom_color.r, self.bottom_color.g, self.bottom_color.b, self.alpha)
-            
-            # Draw bottom rect first (shadow/3D effect)
-            if self.dynamic_elevation > 0:
-                pygame.draw.rect(temp_surface, bottom_rgba, 
-                                pygame.Rect(0, self.elevation, self.rect.width, self.rect.height), 
+        try:
+            # For transparency effects, we can create a temporary surface
+            if hasattr(self, 'alpha') and self.alpha < 255:
+                # Create a temporary surface with per-pixel alpha
+                temp_surface = pygame.Surface((self.rect.width, self.rect.height + self.elevation), pygame.SRCALPHA)
+                
+                # Extract RGB from PyGame Color object and create proper RGBA tuple
+                rgba_color = (self.current_color.r, self.current_color.g, self.current_color.b, self.alpha)
+                bottom_rgba = (self.bottom_color.r, self.bottom_color.g, self.bottom_color.b, self.alpha)
+                
+                # Draw bottom rect first (shadow/3D effect)
+                if self.dynamic_elevation > 0:
+                    pygame.draw.rect(temp_surface, bottom_rgba, 
+                                    pygame.Rect(0, self.elevation, self.rect.width, self.rect.height), 
+                                    border_radius=3)
+                
+                # Draw top button
+                pygame.draw.rect(temp_surface, rgba_color, 
+                                pygame.Rect(0, self.elevation - self.dynamic_elevation, 
+                                          self.rect.width, self.rect.height), 
                                 border_radius=3)
-            
-            # Draw top button
-            pygame.draw.rect(temp_surface, rgba_color, 
-                            pygame.Rect(0, self.elevation - self.dynamic_elevation, 
-                                      self.rect.width, self.rect.height), 
-                            border_radius=3)
-            
-            # Draw borders
-            pygame.draw.rect(temp_surface, (50, 50, 50), 
-                            pygame.Rect(0, self.elevation - self.dynamic_elevation, 
-                                      self.rect.width, self.rect.height), 
-                            width=2, border_radius=3)
-            
-            # Render text to temp surface
-            try:
-                text_surf = self.font.render(self.text, True, self.text_color)
-                text_rect = text_surf.get_rect(center=(self.rect.width//2, 
-                                                     (self.rect.height//2) + (self.elevation - self.dynamic_elevation)))
-                temp_surface.blit(text_surf, text_rect)
-            except Exception as e:
-                print(f"Error rendering button text: {e}")
-            
-            # Blit the temp surface onto the main surface
-            surface.blit(temp_surface, (self.rect.x, self.rect.y - self.elevation))
-        else:
-            # Draw bottom rect first (shadow/3D effect)
-            if self.dynamic_elevation > 0:
-                pygame.draw.rect(surface, self.bottom_color, 
-                                pygame.Rect(self.rect.x, self.original_y_pos, 
-                                         self.rect.width, self.rect.height), 
-                                border_radius=3)
-            
-            # Draw top button
-            top_rect = pygame.Rect(self.rect.x, self.original_y_pos - self.dynamic_elevation, 
-                                 self.rect.width, self.rect.height)
-            pygame.draw.rect(surface, self.current_color, top_rect, border_radius=3)
-            pygame.draw.rect(surface, pygame.Color(50, 50, 50), top_rect, width=2, border_radius=3)
-            
-            # Render text
-            try:
-                text_surf = self.font.render(self.text, True, self.text_color)
-                text_rect = text_surf.get_rect(center=top_rect.center)
-                surface.blit(text_surf, text_rect)
-            except Exception as e:
-                print(f"Error rendering button text: {e}")
+                
+                # Draw borders
+                pygame.draw.rect(temp_surface, (50, 50, 50), 
+                                pygame.Rect(0, self.elevation - self.dynamic_elevation, 
+                                          self.rect.width, self.rect.height), 
+                                width=2, border_radius=3)
+                
+                # Render text to temp surface
+                try:
+                    text_surf = self.font.render(self.text, True, self.text_color)
+                    text_rect = text_surf.get_rect(center=(self.rect.width//2, 
+                                                         (self.rect.height//2) + (self.elevation - self.dynamic_elevation)))
+                    temp_surface.blit(text_surf, text_rect)
+                except Exception as e:
+                    logger.log_error(e, f"Error rendering button text: {self.text}")
+                
+                # Blit the temp surface onto the main surface
+                surface.blit(temp_surface, (self.rect.x, self.rect.y - self.elevation))
+            else:
+                # Draw bottom rect first (shadow/3D effect)
+                if self.dynamic_elevation > 0:
+                    pygame.draw.rect(surface, self.bottom_color, 
+                                    pygame.Rect(self.rect.x, self.original_y_pos, 
+                                             self.rect.width, self.rect.height), 
+                                    border_radius=3)
+                
+                # Draw top button
+                top_rect = pygame.Rect(self.rect.x, self.original_y_pos - self.dynamic_elevation, 
+                                     self.rect.width, self.rect.height)
+                pygame.draw.rect(surface, self.current_color, top_rect, border_radius=3)
+                pygame.draw.rect(surface, pygame.Color(50, 50, 50), top_rect, width=2, border_radius=3)
+                
+                # Render text
+                try:
+                    text_surf = self.font.render(self.text, True, self.text_color)
+                    text_rect = text_surf.get_rect(center=top_rect.center)
+                    surface.blit(text_surf, text_rect)
+                except Exception as e:
+                    logger.log_error(e, f"Error rendering button text: {self.text}")
+        except Exception as e:
+            logger.log_error(e, f"Error rendering button: {self.text}")
 
 class Label(UIElement):
     def __init__(self, x, y, text, color=(255, 255, 255), font_size=20, font_family=None):
-        # Normalize color
-        self.color, self.alpha = normalize_color(color)
-        
-        # Load font
         try:
-            self.font = pygame.font.Font(font_family, font_size) if font_family else pygame.font.SysFont('Arial', font_size)
-        except:
-            print(f"Warning: Could not load font '{font_family}', falling back to default")
-            self.font = pygame.font.SysFont('Arial', font_size)
-        
-        # Create text surface to determine size
-        text_surf = self.font.render(text, True, self.color)
-        super().__init__(x, y, text_surf.get_width(), text_surf.get_height())
-        self.text = text
+            # Normalize color
+            self.color, self.alpha = normalize_color(color)
+            
+            # Load font
+            try:
+                self.font = pygame.font.Font(font_family, font_size) if font_family else pygame.font.SysFont('Arial', font_size)
+            except Exception as e:
+                error_msg = f"Could not load font '{font_family}', falling back to default"
+                logger.log_error(e, error_msg)
+                self.font = pygame.font.SysFont('Arial', font_size)
+            
+            # Create text surface to determine size
+            text_surf = self.font.render(text, True, self.color)
+            super().__init__(x, y, text_surf.get_width(), text_surf.get_height())
+            self.text = text
+        except Exception as e:
+            logger.log_error(e, f"Failed to initialize Label: '{text}' at ({x}, {y})")
+            super().__init__(x, y, 100, 20)  # Default size if rendering failed
+            self.text = text
     
     def render(self, surface):
         if not self.visible:
@@ -206,7 +225,7 @@ class Label(UIElement):
                 text_surf = self.font.render(self.text, True, self.color)
                 surface.blit(text_surf, self.rect)
         except Exception as e:
-            print(f"Error rendering label text: {e}")
+            logger.log_error(e, f"Error rendering label: {self.text}")
             
 class UIManager:
     def __init__(self, window):
