@@ -1,10 +1,25 @@
-from geometry import Geometry
+from meshes.mesh_data import MeshData
 import math
+from OpenGL.GL import *
 
 
-class PolyhedronGeometry(Geometry):
+class PolyhedronGeometry(MeshData):
+    """
+    A class for creating regular polyhedron geometries (tetrahedron, octahedron, etc.).
+
+    Can create base polyhedra and optionally subdivide faces for smoother shapes.
+    """
 
     def __init__(self, radius=1.0, polyhedron_type="tetrahedron", subdivisions=0):
+        """
+        Initialize a polyhedron geometry.
+
+        Args:
+            radius (float): Radius of the circumscribed sphere
+            polyhedron_type (str): Type of polyhedron ('tetrahedron', 'octahedron', 'cube',
+                                   'icosahedron', or 'dodecahedron')
+            subdivisions (int): Number of times to subdivide faces (0 = no subdivision)
+        """
         super().__init__()
 
         # Get base polyhedron vertices and faces
@@ -20,83 +35,80 @@ class PolyhedronGeometry(Geometry):
         # Scale vertices by radius
         vertices = [[radius * coord for coord in vertex] for vertex in vertices]
 
-        # Define default colors for faces
+        # Calculate vertex normals for smooth shading
+        vertex_normals = self.calculate_vertex_normals(vertices, faces)
+
+        # Calculate UV coordinates for each vertex
+        uv_coords = [self.calculate_uv(self.normalize(v)) for v in vertices]
+
+        # Calculate face normals and build face attributes
+        face_normals = []
+        for face in faces:
+            v0, v1, v2 = [vertices[i] for i in face]
+            e1 = [v1[i] - v0[i] for i in range(3)]
+            e2 = [v2[i] - v0[i] for i in range(3)]
+            normal = self.normalize(self.cross_product(e1, e2))
+            
+            # Ensure normal points outward
+            center = [(v0[i] + v1[i] + v2[i]) / 3 for i in range(3)]
+            if self.dot_product(center, normal) < 0:
+                normal = [-n for n in normal]
+                
+            face_normals.append(normal)
+
+        # Define a simple color scheme based on faces
         C1, C2, C3 = [1, 0, 0], [0, 1, 0], [0, 0, 1]
         C4, C5, C6 = [0, 1, 1], [1, 0, 1], [1, 1, 0]
         default_colors = [C1, C2, C3, C4, C5, C6]
+        
+        # Assign a color to each vertex based on its face
+        vertex_colors = []
+        for i in range(len(vertices)):
+            # Find a face containing this vertex and use its color
+            for f_idx, face in enumerate(faces):
+                if i in face:
+                    color_idx = f_idx % len(default_colors)
+                    vertex_colors.append(default_colors[color_idx])
+                    break
+            else:
+                # Fallback if vertex isn't in any face
+                vertex_colors.append([0.7, 0.7, 0.7])
+                
+        # Create face normal array matching vertex count
+        expanded_face_normals = []
+        for face_idx, face in enumerate(faces):
+            for _ in face:
+                expanded_face_normals.append(face_normals[face_idx])
 
-        # Build vertex, color, and UV arrays
-        positionData = []
-        colorData = []
-        uvData = []
-        vertexNormalData = []
-        faceNormalData = []
-
-        # Create vertex normal lookup
-        vertex_normals = self.calculate_vertex_normals(vertices, faces)
-
-        for faceIndex, face in enumerate(faces):
-            # Get vertices for current face
-            v0 = vertices[face[0]]
-            v1 = vertices[face[1]]
-            v2 = vertices[face[2]]
-
-            # Calculate face normal and center
-            e1 = [v1[i] - v0[i] for i in range(3)]
-            e2 = [v2[i] - v0[i] for i in range(3)]
-            face_normal = self.normalize(self.cross_product(e1, e2))
-            center = [(v0[i] + v1[i] + v2[i]) / 3 for i in range(3)]
-
-            # Ensure outward-facing normal
-            if self.dot_product(center, face_normal) < 0:
-                face = [face[0], face[2], face[1]]
-                v0, v1, v2 = v0, v2, v1
-                face_normal = [-x for x in face_normal]
-
-            # Get vertex normals for this face
-            vn0 = vertex_normals[face[0]]
-            vn1 = vertex_normals[face[1]]
-            vn2 = vertex_normals[face[2]]
-
-            # Calculate UV coordinates based on spherical projection
-            # Note: Fixed UV calculation to prevent inversion
-            uv0 = self.calculate_uv(self.normalize(v0))
-            uv1 = self.calculate_uv(self.normalize(v1))
-            uv2 = self.calculate_uv(self.normalize(v2))
-
-            # Add vertices to position data
-            positionData.extend([v0, v1, v2])
-
-            # Add UV coordinates
-            uvData.extend([uv0, uv1, uv2])
-
-            # Add vertex normals
-            vertexNormalData.extend([vn0, vn1, vn2])
-
-            # Add face normal for each vertex
-            faceNormalData.extend([face_normal] * 3)
-
-            # Add alternating colors for faces
-            colorIndex = faceIndex % len(default_colors)
-            colorData.extend([default_colors[colorIndex]] * 3)
-
-        # Add attribute data to geometry
-        self.addAttribute("vec3", "vertexPosition", positionData)
-        self.addAttribute("vec3", "vertexColor", colorData)
-        self.addAttribute("vec2", "vertexUV", uvData)
-        self.addAttribute("vec3", "vertexNormal", vertexNormalData)
-        self.addAttribute("vec3", "faceNormal", faceNormalData)
-        self.countVertices()
+        # Add attribute data to geometry with proper types
+        self.add_attr("vec3", "v_pos", vertices)
+        self.add_attr("vec3", "color", vertex_colors)
+        self.add_attr("vec2", "v_uv", uv_coords)
+        self.add_attr("vec3", "v_norm", vertex_normals)
+        self.add_attr("vec3", "f_norm", vertex_normals)  # Using vertex normals for smooth shading
+        
+        # Flatten faces into a single index array
+        indices = []
+        for face in faces:
+            indices.extend(face)
+            
+        self.add_attr("uint", "indices", indices)
+        
+        self.count_vert()
 
     def calculate_uv(self, normalized_vertex):
         """
         Calculate UV coordinates using spherical projection.
-        Takes a normalized vertex (point on unit sphere) and returns UV coordinates.
-        Fixed to prevent texture inversion.
+        
+        Args:
+            normalized_vertex (list): Normalized vertex coordinates [x, y, z]
+            
+        Returns:
+            list: UV coordinates [u, v]
         """
         x, y, z = normalized_vertex
 
-        # Calculate spherical coordinates with corrected V coordinate
+        # Calculate spherical coordinates
         u = 0.5 + (math.atan2(x, z) / (2 * math.pi))
         v = 0.5 + (math.asin(y) / math.pi)
 
@@ -105,7 +117,13 @@ class PolyhedronGeometry(Geometry):
     def calculate_vertex_normals(self, vertices, faces):
         """
         Calculate smooth vertex normals by averaging face normals.
-        Returns a list of normal vectors for each vertex.
+        
+        Args:
+            vertices (list): List of vertex positions
+            faces (list): List of face indices
+            
+        Returns:
+            list: List of normal vectors for each vertex
         """
         # Initialize normal accumulation arrays
         vertex_normals = [[0, 0, 0] for _ in vertices]
@@ -143,6 +161,15 @@ class PolyhedronGeometry(Geometry):
         return vertex_normals
 
     def get_base_polyhedron(self, polyhedron_type):
+        """
+        Get the base vertices and faces for the specified polyhedron type.
+        
+        Args:
+            polyhedron_type (str): Type of polyhedron
+            
+        Returns:
+            tuple: (vertices, faces) lists
+        """
         if polyhedron_type == "tetrahedron":
             t = (1.0 + math.sqrt(2.0)) / 2.0
             vertices = [
@@ -221,7 +248,6 @@ class PolyhedronGeometry(Geometry):
                     [pentagon[0], pentagon[2], pentagon[3]],
                     [pentagon[0], pentagon[3], pentagon[4]]
                 ])
-
         else:
             raise ValueError(
                 "Polyhedron type must be 'tetrahedron', 'octahedron', 'cube', 'icosahedron', or 'dodecahedron'")
@@ -229,14 +255,31 @@ class PolyhedronGeometry(Geometry):
         return vertices, faces
 
     def normalize(self, vector):
-        """Normalize a vector to unit length."""
+        """
+        Normalize a vector to unit length.
+        
+        Args:
+            vector (list): Vector to normalize
+            
+        Returns:
+            list: Normalized vector
+        """
         length = math.sqrt(sum(coord * coord for coord in vector))
-        if length == 0:
+        if length < 1e-8:
             return vector
         return [coord / length for coord in vector]
 
     def cross_product(self, a, b):
-        """Calculate the cross product of two vectors."""
+        """
+        Calculate the cross product of two vectors.
+        
+        Args:
+            a (list): First vector
+            b (list): Second vector
+            
+        Returns:
+            list: Cross product of a and b
+        """
         return [
             a[1] * b[2] - a[2] * b[1],
             a[2] * b[0] - a[0] * b[2],
@@ -244,17 +287,41 @@ class PolyhedronGeometry(Geometry):
         ]
 
     def dot_product(self, a, b):
-        """Calculate the dot product of two vectors."""
+        """
+        Calculate the dot product of two vectors.
+        
+        Args:
+            a (list): First vector
+            b (list): Second vector
+            
+        Returns:
+            float: Dot product of a and b
+        """
         return sum(a[i] * b[i] for i in range(3))
 
     def midpoint(self, v1, v2):
-        """Calculate the midpoint between two vectors."""
+        """
+        Calculate the midpoint between two vectors.
+        
+        Args:
+            v1 (list): First vector
+            v2 (list): Second vector
+            
+        Returns:
+            list: Midpoint between v1 and v2
+        """
         return [(a + b) / 2 for a, b in zip(v1, v2)]
 
     def subdivide_faces(self, vertices, faces):
         """
         Subdivide each face into four smaller faces.
-        Returns new vertices and faces arrays.
+        
+        Args:
+            vertices (list): List of vertex positions
+            faces (list): List of face indices
+            
+        Returns:
+            tuple: (new_vertices, new_faces) lists
         """
         new_vertices = vertices.copy()
         new_faces = []

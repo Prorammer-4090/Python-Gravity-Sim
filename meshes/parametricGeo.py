@@ -1,11 +1,11 @@
-from geometry import Geometry
+from meshes.mesh_data import MeshData
 import numpy as np
 
 
-class ParametricGeometry(Geometry):
+class ParametricGeometry(MeshData):
     """
     A class for creating parametric geometries based on a surface function.
-    It extends the Geometry class to generate vertices, colors, UV coordinates,
+    It extends the MeshData class to generate vertices, colors, UV coordinates,
     and both face and vertex normal vectors from a parametric surface function.
     """
 
@@ -13,7 +13,7 @@ class ParametricGeometry(Geometry):
         """
         Initializes a parametric geometry by sampling a surface function.
 
-        Params:
+        Args:
             u_min (float): Minimum value of the u parameter
             u_max (float): Maximum value of the u parameter
             u_segments (int): Number of subdivisions along the u direction
@@ -44,6 +44,7 @@ class ParametricGeometry(Geometry):
         vertex_uvs = []
         vertex_normals = []
         face_normals = []
+        indices = []
 
         # Default color palette
         colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1],
@@ -101,50 +102,65 @@ class ParametricGeometry(Geometry):
                 normal_row.append(normal)
             vertex_normal_grid.append(normal_row)
 
-        # Build triangles
+        # Create indexed geometry data
+        # First, add all vertices to arrays - we'll reference them by indices
+        for u_idx in range(u_segments + 1):
+            for v_idx in range(v_segments + 1):
+                # Get vertex data
+                position = vertices[u_idx][v_idx]
+                uv = uv_coords[u_idx][v_idx]
+                normal = vertex_normal_grid[u_idx][v_idx]
+                
+                # Add data to arrays
+                vertex_positions.append(position)
+                vertex_uvs.append(uv)
+                vertex_normals.append(normal)
+                
+                # Alternate colors for visual distinction
+                color_idx = (u_idx + v_idx) % len(colors)
+                vertex_colors.append(colors[color_idx])
+
+        # Calculate face normals for the quads
+        quad_face_normals = []
         for u_idx in range(u_segments):
+            row_normals = []
             for v_idx in range(v_segments):
                 # Get vertices for current quad
                 p1 = vertices[u_idx][v_idx]
                 p2 = vertices[u_idx + 1][v_idx]
                 p3 = vertices[u_idx + 1][v_idx + 1]
-                p4 = vertices[u_idx][v_idx + 1]
+                
+                # Calculate face normal
+                face_normal = calculate_face_normal(p1, p2, p3)
+                row_normals.append(face_normal)
+            quad_face_normals.append(row_normals)
 
-                # Get corresponding vertex normals
-                n1 = vertex_normal_grid[u_idx][v_idx]
-                n2 = vertex_normal_grid[u_idx + 1][v_idx]
-                n3 = vertex_normal_grid[u_idx + 1][v_idx + 1]
-                n4 = vertex_normal_grid[u_idx][v_idx + 1]
+        # Generate face data with proper indices
+        for u_idx in range(u_segments):
+            for v_idx in range(v_segments):
+                # Calculate the indices of the four corners of each grid cell
+                i0 = u_idx * (v_segments + 1) + v_idx
+                i1 = (u_idx + 1) * (v_segments + 1) + v_idx
+                i2 = (u_idx + 1) * (v_segments + 1) + (v_idx + 1)
+                i3 = u_idx * (v_segments + 1) + (v_idx + 1)
+                
+                # Get the face normal for this quad
+                face_normal = quad_face_normals[u_idx][v_idx]
+                
+                # First triangle (i0, i1, i2)
+                indices.extend([i0, i1, i2])
+                face_normals.extend([face_normal, face_normal, face_normal])
+                
+                # Second triangle (i0, i2, i3)
+                indices.extend([i0, i2, i3])
+                face_normals.extend([face_normal, face_normal, face_normal])
 
-                # Calculate face normals for both triangles
-                fn1 = calculate_face_normal(p1, p2, p3)
-                fn2 = calculate_face_normal(p1, p3, p4)
+        # Add attributes to geometry using the original string type names
+        self.add_attr("vec2", "v_uv", vertex_uvs)
+        self.add_attr("vec3", "v_pos", vertex_positions)
+        self.add_attr("vec3", "color", vertex_colors)
+        self.add_attr("vec3", "v_norm", vertex_normals)
+        self.add_attr("vec3", "f_norm", face_normals)
+        self.add_attr("uint", "indices", indices)
 
-                # Get UV coordinates
-                uv1 = uv_coords[u_idx][v_idx]
-                uv2 = uv_coords[u_idx + 1][v_idx]
-                uv3 = uv_coords[u_idx + 1][v_idx + 1]
-                uv4 = uv_coords[u_idx][v_idx + 1]
-
-                # Add data for first triangle (p1, p2, p3)
-                vertex_positions.extend([p1, p2, p3])
-                vertex_colors.extend([colors[0], colors[1], colors[2]])
-                vertex_uvs.extend([uv1, uv2, uv3])
-                vertex_normals.extend([n1, n2, n3])
-                face_normals.extend([fn1, fn1, fn1])
-
-                # Add data for second triangle (p1, p3, p4)
-                vertex_positions.extend([p1, p3, p4])
-                vertex_colors.extend([colors[3], colors[4], colors[5]])
-                vertex_uvs.extend([uv1, uv3, uv4])
-                vertex_normals.extend([n1, n3, n4])
-                face_normals.extend([fn2, fn2, fn2])
-
-        # Add attributes to geometry
-        self.addAttribute("vec2", "vertexUV", vertex_uvs)
-        self.addAttribute("vec3", "vertexPosition", vertex_positions)
-        self.addAttribute("vec3", "vertexColor", vertex_colors)
-        self.addAttribute("vec3", "vertexNormal", vertex_normals)
-        self.addAttribute("vec3", "faceNormal", face_normals)
-
-        self.countVertices()
+        self.count_vert()

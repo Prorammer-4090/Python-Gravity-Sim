@@ -35,7 +35,7 @@ class UIElement:
         pass
 
 class Button(UIElement):
-    def __init__(self, x, y, width, height, text, callback, color=(255, 255, 255), hover_color=(130, 130, 130), font_family=None, text_color=(0, 0, 0, 1), elevation=6):
+    def __init__(self, x, y, width, height, text, callback, color=(255, 255, 255), hover_color=(130, 130, 130), font_family=None, text_color=(0, 0, 0, 1), elevation=6, font_size=24):
         super().__init__(x, y, width, height)
         self.text = text
         self.callback = callback
@@ -67,11 +67,11 @@ class Button(UIElement):
             
             # Load font
             try:
-                self.font = pygame.font.Font(font_family, 20) if font_family else pygame.font.SysFont('Arial', 24)
+                self.font = pygame.font.Font(font_family, font_size) if font_family else pygame.font.SysFont('Arial', 24)
             except Exception as e:
                 error_msg = f"Could not load font '{font_family}', falling back to default"
                 logger.log_error(e, error_msg)
-                self.font = pygame.font.SysFont('Arial', 20)
+                self.font = pygame.font.SysFont('Arial', font_size)
                 
             self.is_pressed = False  # Track press state
         except Exception as e:
