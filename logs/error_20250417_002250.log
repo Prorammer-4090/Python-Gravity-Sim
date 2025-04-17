@@ -1,0 +1,16 @@
+=== Error Log: 2025-04-17 00:22:50 ===
+
+Location: helpers.transform.compose:184
+Context: Failed to compose transformation matrix: pos=[0.0, 0.0, 0.0], rot=[0.0, 0.0, 0.0], scale=[1.0, 1.0, 1.0]
+Error Type: AttributeError
+Error Message: module 'pyrr.matrix44' has no attribute 'numpy'
+
+Traceback:
+Traceback (most recent call last):
+  File "/Users/jethroaiyesan/Programming/Python-Gravity-Sim/helpers/transform.py", line 171, in compose
+    t = Transform.translation(*position)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jethroaiyesan/Programming/Python-Gravity-Sim/helpers/transform.py", line 29, in translation
+    return pyrr.matrix44.numpy.array.T(matrix)
+           ^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'pyrr.matrix44' has no attribute 'numpy'
