@@ -1,4 +1,4 @@
-from core.entity import Entity
+from core.ecs.entity import Entity
 from helpers.transform import Transform
 import numpy as np
 
