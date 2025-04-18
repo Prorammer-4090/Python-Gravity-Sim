@@ -23,9 +23,6 @@ class Transform:
             4x4 translation matrix as numpy array
         """
         try:
-            print(f"Translation{pyrr.matrix44.create_from_translation(
-                pyrr.Vector3([x, y, z]), dtype=np.float32
-            )}")
             return pyrr.matrix44.create_from_translation(
                 pyrr.Vector3([x, y, z]), dtype=np.float32
             )
@@ -58,7 +55,6 @@ class Transform:
 
             quat = pyrr.quaternion.cross(quat_y, quat_x)
             quat = pyrr.quaternion.cross(quat_z, quat)
-            print(f"Rotation: {pyrr.matrix44.create_from_quaternion(quat, dtype=np.float32)}")
             return pyrr.matrix44.create_from_quaternion(quat, dtype=np.float32)
         except Exception as e:
             logger.log_error(e, f"Failed to create rotation matrix with angles ({angx}, {angy}, {angz}) radians")
@@ -78,7 +74,6 @@ class Transform:
             4x4 scaling matrix as numpy array
         """
         try:
-            print(f"Scale: {pyrr.matrix44.create_from_scale([x, y, z], dtype=np.float32)}")
             return pyrr.matrix44.create_from_scale([x, y, z], dtype=np.float32)
         except Exception as e:
             logger.log_error(e, f"Failed to create scale matrix with factors ({x}, {y}, {z})")
@@ -284,4 +279,18 @@ class Transform:
         except Exception as e:
             context = f"Failed to create orthographic matrix: left={left}, right={right}, bottom={bottom}, top={top}, near={near}, far={far}"
             logger.log_error(e, context)
+            raise
+
+    @staticmethod
+    def identity() -> np.ndarray:
+        """
+        Create an identity matrix.
+        
+        Returns:
+            4x4 identity matrix as numpy array
+        """
+        try:
+            return np.identity(4, dtype=np.float32)
+        except Exception as e:
+            logger.log_error(e, "Failed to create identity matrix")
             raise

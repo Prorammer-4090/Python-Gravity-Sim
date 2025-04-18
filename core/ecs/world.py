@@ -39,16 +39,13 @@ class World:
         """
         entity.destroy()
     
-    def update(self) -> float:
+    def update(self, dt) -> float:
         """
         Update all systems
         
         Returns:
             Time delta in seconds since last update
         """
-        current_time = time.time()
-        dt = current_time - self.last_update_time
-        self.last_update_time = current_time
         
         # Update systems
         # Note: TransformSystem should come first to ensure transforms are up to date

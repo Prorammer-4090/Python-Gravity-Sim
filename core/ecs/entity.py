@@ -44,6 +44,17 @@ class Entity:
         """Get all entities"""
         return list(cls._entities.values())
     
+    @classmethod
+    def get_entities_with_component(cls, component_type: Type[Component]) -> List['Entity']:
+        """Get all entities that have a specific component type"""
+        return [entity for entity in cls._entities.values() if entity.has_component(component_type)]
+    
+    @classmethod
+    def get_entities_with_components(cls, *component_types: Type[Component]) -> List['Entity']:
+        """Get all entities that have all of the specified component types"""
+        return [entity for entity in cls._entities.values() 
+                if all(entity.has_component(comp_type) for comp_type in component_types)]
+    
     def add_child(self, child: 'Entity') -> None:
         """
         Add a child entity to this entity

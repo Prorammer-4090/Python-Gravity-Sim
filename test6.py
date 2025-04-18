@@ -12,10 +12,10 @@ from meshes.polyhedronGeo import PolyhedronGeometry
 from meshes.torusGeo import TorusGeometry
 from meshes.mesh_data import MeshData
 
-class MeshViewerApp(Window):
+class LitMeshViewerApp(Window):
     def __init__(self):
         # Initialize with window size
-        self.screen_size = [1000, 800]
+        self.screen_size = [800, 600]
         super().__init__(self.screen_size)
         
         # Store dimensions explicitly
@@ -24,13 +24,19 @@ class MeshViewerApp(Window):
         
         self.theta = 0
         self.camera_pos = np.array([0.0, 0.0, 5.0])
-        self.target_pos = np.array([0.0, 0.0, 0.0])  # What the camera is looking at
+        self.target_pos = np.array([0.0, 0.0, 0.0])
         self.rotation_speed = 30.0  # Degrees per second
         
         # Active mesh type
         self.current_mesh_type = "icosahedron"
         self.mesh_subdivisions = 0
         self.num_vertices = 0
+        
+        # Lighting parameters
+        self.ambient_strength = 0.5
+        self.ambient_color = [1.0, 1.0, 1.0]  # White ambient light
+        self.mesh_color = [0.0, 0.7, 1.0]     # Default blue color
+        self.use_custom_color = True          # Use the uniform color by default
         
         # Add UI elements
         self.fps_label = self.ui_manager.add_element(
@@ -44,6 +50,21 @@ class MeshViewerApp(Window):
         
         self.subdivision_label = self.ui_manager.add_element(
             Label(10, 70, f"Subdivisions: {self.mesh_subdivisions}", color=(255, 255, 0), 
+                  font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        
+        self.num_vertices_label = self.ui_manager.add_element(
+            Label(600, 10, f"Vertices: {self.num_vertices}", color=(255, 255, 0), 
+                  font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        
+        self.ambient_label = self.ui_manager.add_element(
+            Label(600, 40, f"Ambient: {self.ambient_strength:.1f}", color=(255, 255, 0), 
+                  font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        
+        self.color_mode_label = self.ui_manager.add_element(
+            Label(600, 70, "Using Custom Color", color=(255, 255, 0), 
                   font_family="Fonts/Silkscreen-Regular.ttf")
         )
         
@@ -66,15 +87,44 @@ class MeshViewerApp(Window):
                    font_size=16)
         )
         
-        self.num_vertices_label = self.ui_manager.add_element(
-            Label(600, 10, f"Verticies: {self.num_vertices}", color=(255, 255, 0), 
-                  font_family="Fonts/Silkscreen-Regular.ttf")
+        self.increase_ambient_button = self.ui_manager.add_element(
+            Button(10, 220, 200, 30, "Increase Ambient", self.increase_ambient, 
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
+        )
+        
+        self.decrease_ambient_button = self.ui_manager.add_element(
+            Button(10, 260, 200, 30, "Decrease Ambient", self.decrease_ambient, 
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
+        )
+        
+        self.toggle_color_button = self.ui_manager.add_element(
+            Button(10, 300, 200, 30, "Toggle Color Mode", self.toggle_color_mode, 
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
+        )
+        
+        self.cycle_color_button = self.ui_manager.add_element(
+            Button(10, 340, 200, 30, "Cycle Mesh Color", self.cycle_color, 
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
         )
         
         # App state
         self.paused = False
-        self.wireframe = True
+        self.wireframe = False
         self.mesh_types = ["tetrahedron", "octahedron", "cube", "icosahedron", "dodecahedron", "torus"]
+        
+        # Predefined colors for cycling
+        self.color_presets = [
+            [0.0, 0.7, 1.0],  # Blue
+            [0.0, 0.8, 0.4],  # Green
+            [1.0, 0.4, 0.0],  # Orange
+            [0.8, 0.2, 0.8],  # Purple
+            [1.0, 0.8, 0.0],  # Yellow
+        ]
+        self.color_index = 0
     
     def next_mesh(self):
         # Cycle to the next mesh type
@@ -91,8 +141,8 @@ class MeshViewerApp(Window):
         self.load_mesh()
     
     def increase_subdivision(self):
-        # Increase subdivision level (max 3 to prevent performance issues)
-        if self.mesh_subdivisions < 8:
+        # Increase subdivision level (max 5 to prevent performance issues)
+        if self.mesh_subdivisions < 5:
             self.mesh_subdivisions += 1
             self.subdivision_label.text = f"Subdivisions: {self.mesh_subdivisions}"
             self.load_mesh()
@@ -101,6 +151,26 @@ class MeshViewerApp(Window):
         # Toggle wireframe rendering mode
         self.wireframe = not self.wireframe
         self.wireframe_button.text = "Disable Wireframe" if self.wireframe else "Enable Wireframe"
+    
+    def increase_ambient(self):
+        # Increase ambient light intensity (max 1.0)
+        self.ambient_strength = min(1.0, self.ambient_strength + 0.1)
+        self.ambient_label.text = f"Ambient: {self.ambient_strength:.1f}"
+    
+    def decrease_ambient(self):
+        # Decrease ambient light intensity (min 0.0)
+        self.ambient_strength = max(0.0, self.ambient_strength - 0.1)
+        self.ambient_label.text = f"Ambient: {self.ambient_strength:.1f}"
+    
+    def toggle_color_mode(self):
+        # Toggle between custom color and vertex colors
+        self.use_custom_color = not self.use_custom_color
+        self.color_mode_label.text = "Using Custom Color" if self.use_custom_color else "Using Vertex Colors"
+    
+    def cycle_color(self):
+        # Cycle through predefined colors
+        self.color_index = (self.color_index + 1) % len(self.color_presets)
+        self.mesh_color = self.color_presets[self.color_index]
     
     def load_mesh(self):
         """Load the currently selected mesh with appropriate subdivisions"""
@@ -124,6 +194,7 @@ class MeshViewerApp(Window):
         if not self.mesh.gpu_load():
             print(f"Failed to load mesh: {self.current_mesh_type}")
         self.num_vertices = self.mesh.num_vertices
+        self.num_vertices_label.text = f"Vertices: {self.num_vertices}"
 
     def initialize(self):
         print("OpenGL version:", glGetString(GL_VERSION).decode())
@@ -133,9 +204,9 @@ class MeshViewerApp(Window):
         glEnable(GL_CULL_FACE)
         glCullFace(GL_BACK)
         
-        # Create shader
-        self.compile = CompileShader([("shaders/vert_shader.vert", "vertex shader"), 
-                                     ("shaders/frag_shader.frag", "fragment shader")])
+        # Create shader with our lit shaders
+        self.compile = CompileShader([("shaders/vert_shader_lit.vert", "vertex shader"), 
+                                     ("shaders/frag_shader_lit.frag", "fragment shader")])
         self.shader = self.compile.get_program_id()
         glUseProgram(self.shader)
         
@@ -163,6 +234,12 @@ class MeshViewerApp(Window):
         self.proj_loc = glGetUniformLocation(self.shader, "projection")
         self.view_loc = glGetUniformLocation(self.shader, "view")
         self.model_loc = glGetUniformLocation(self.shader, "model")
+        
+        # Lighting uniform locations
+        self.ambient_str_loc = glGetUniformLocation(self.shader, "ambientStrength")
+        self.ambient_color_loc = glGetUniformLocation(self.shader, "ambientColor")
+        self.mesh_color_loc = glGetUniformLocation(self.shader, "meshColor")
+        self.use_custom_color_loc = glGetUniformLocation(self.shader, "useCustomColor")
 
         # Set initial projection matrix
         glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, self.proj.astype(np.float32))
@@ -217,10 +294,8 @@ class MeshViewerApp(Window):
         
         # Update rotation angle based on time and rotation speed
         delta_time = 1.0 / max(self.clock.get_fps(), 1.0)  # Get seconds per frame, avoid division by zero
-        self.num_vertices = self.mesh.num_vertices
-        self.num_vertices_label.text = f"Verticies: {self.num_vertices}"  # Update the label text
-        if self.theta == 360:
-            self.theta == 0
+        if self.theta >= 360:
+            self.theta = 0
         self.theta = (self.theta + self.rotation_speed * delta_time)
 
     def render_opengl(self):
@@ -229,7 +304,14 @@ class MeshViewerApp(Window):
         # Update time uniform
         t = pg.time.get_ticks() / 1000.0  # Get time in seconds
         time_loc = glGetUniformLocation(self.shader, "time")
-        glUniform1f(time_loc, t)
+        if time_loc != -1:
+            glUniform1f(time_loc, t)
+        
+        # Update lighting uniforms
+        glUniform1f(self.ambient_str_loc, self.ambient_strength)
+        glUniform3f(self.ambient_color_loc, *self.ambient_color)
+        glUniform3f(self.mesh_color_loc, *self.mesh_color)
+        glUniform1i(self.use_custom_color_loc, int(self.use_custom_color))
 
         # Apply view matrix
         glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.view.astype(np.float32))
@@ -260,5 +342,5 @@ class MeshViewerApp(Window):
 
 
 if __name__ == '__main__':
-    app = MeshViewerApp()
+    app = LitMeshViewerApp()
     app.run()
