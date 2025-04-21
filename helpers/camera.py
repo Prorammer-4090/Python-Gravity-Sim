@@ -1,112 +1,144 @@
 import numpy as np
-from typing import Tuple, Optional
+import pygame
+from helpers.transform import Transform
+from helpers.object3D import Object3D
+from numpy.linalg import inv
 
-from core.ecs.entity import Entity
-from core.ecs.components import TransformComponent, CameraComponent
-from core.ecs.systems import CameraSystem
-
-class Camera(Entity):
+class Camera(Object3D):
     """
-    A 3D Camera entity that allows for viewing of the 3D scene.
-    
-    Creates an Entity with TransformComponent and CameraComponent to handle
-    camera properties and operations using the ECS architecture.
-    
+    A 3D Camera that allows for viewing of the 3D scene using a perspective projection and view transformations. it includes 
+    for tracking camera movement and generating rays for mouse interaction.
+
+    Inherits from the Object3D to provides the ability to be loaded into the scene; move around the scene using transformations;
+    and add child objects.
+
+    Dependencies:
+    - numpy: For matrix and vector operations
+    - pygame: For timing and movement tracking
+    - core.matrix: Custom Matrix class for projection calculations
+    - core.object3D: Base class for 3D objects
+
     Parameters:
-        name (str): Name of the camera entity
-        angle_of_view (float): Vertical field of view in degrees
-        aspect_ratio (float): Width/height ratio of the viewport
-        near (float): Distance to near clipping plane
-        far (float): Distance to far clipping plane
+        angleOfView (float): Vertical field of view in degrees. Defaults to 60.
+        aspectRatio (float): Width/height ratio of the viewport. Defaults to 1.
+        near (float): Distance to near clipping plane. Defaults to 0.1.
+        far (float): Distance to far clipping plane. Defaults to 1000.
     """
-    def __init__(
-        self, 
-        name: str = "Camera", 
-        angle_of_view: float = 60, 
-        aspect_ratio: float = 1, 
-        near: float = 0.1, 
-        far: float = 1000
-    ):
-        super().__init__(name=name)
+
+    def __init__(self, angleOfView=60, aspectRatio=1, near=0.1, far=1000):
+        super().__init__()
+        # Create projection matrix
+        self.projectionMatrix = Transform.perspective(angleOfView, aspectRatio, near, far)
+        self.viewMatrix = Transform.identity()
         
-        # Add TransformComponent for position and orientation
-        self.add_component(TransformComponent())
+        # Initialize camera state tracking variables
+        self.position = np.array([0.0, 0.0, 0.0])  # Current world position
+        self.orientation = np.identity(3)  # Current rotation matrix
+        self.last_position = self.position.copy()  # Previous position for movement detection
+        self.last_orientation = self.orientation.copy()  # Previous orientation for movement detection
+        self.movement_cooldown = 200  # Time in ms before camera is considered stationary
+        self.last_movement_time = pygame.time.get_ticks()  # Timestamp of last movement
+        self.is_currently_moving = False  # Current movement state
         
-        # Add CameraComponent for camera-specific properties
-        self.add_component(CameraComponent(
-            angle_of_view=angle_of_view,
-            aspect_ratio=aspect_ratio,
-            near=near,
-            far=far
-        ))
-        
-        # Cache for common camera system operations
-        self._camera_system = CameraSystem()
-    
-    def set_perspective(self, angle_of_view: float = 60, aspect_ratio: float = 1, near: float = 0.1, far: float = 1000) -> None:
-        """Set camera to perspective projection mode"""
-        camera_component = self.get_component(CameraComponent)
-        if camera_component:
-            camera_component.angle_of_view = angle_of_view
-            camera_component.aspect_ratio = aspect_ratio
-            camera_component.near = near
-            camera_component.far = far
-            camera_component.projection_type = "perspective"
-            camera_component.update_projection_matrix()
-    
-    def set_orthographic(
-        self, 
-        left: float = -1, 
-        right: float = 1, 
-        bottom: float = -1, 
-        top: float = 1, 
-        near: float = -1, 
-        far: float = 1
-    ) -> None:
-        """Set camera to orthographic projection mode"""
-        camera_component = self.get_component(CameraComponent)
-        if camera_component:
-            camera_component.left = left
-            camera_component.right = right
-            camera_component.bottom = bottom
-            camera_component.top = top
-            camera_component.near = near
-            camera_component.far = far
-            camera_component.projection_type = "orthographic"
-            camera_component.update_projection_matrix()
-    
-    def is_moving(self) -> bool:
-        """Check if the camera is currently moving"""
-        camera_component = self.get_component(CameraComponent)
-        if camera_component:
-            return camera_component.is_moving
-        return False
-    
-    def get_view_matrix(self) -> Optional[np.ndarray]:
-        """Get the camera's current view matrix"""
-        camera_component = self.get_component(CameraComponent)
-        if camera_component:
-            # Ensure view matrix is up to date
-            self._camera_system._update_view_matrix(self, camera_component)
-            return camera_component.view_matrix
-        return None
-    
-    def get_projection_matrix(self) -> Optional[np.ndarray]:
-        """Get the camera's current projection matrix"""
-        camera_component = self.get_component(CameraComponent)
-        if camera_component:
-            return camera_component.projection_matrix
-        return None
-    
-    def get_ray_from_mouse(self, mouse_pos: Tuple[int, int], screen_size: Tuple[int, int]) -> Tuple[np.ndarray, np.ndarray]:
+        # Initialize view matrix with current transform
+        self.updateViewMatrix()
+
+    def updateViewMatrix(self):
         """
-        Generate a ray from the camera through the given screen position
+        Calculates view matrix and updates the position tracking variables.
+        """
+        self.viewMatrix = inv(self.getWorldMatrix())
+
+        # Extract current position and orientation from world matrix
+        world_matrix = self.getWorldMatrix()
+        self.position = np.array([
+            world_matrix[0, 3],
+            world_matrix[1, 3],
+            world_matrix[2, 3]
+        ])
+        self.orientation = world_matrix[:3, :3]
+
+        # Detect changes in position or orientation
+        position_changed = not np.allclose(self.position, self.last_position, atol=1e-6)
+        orientation_changed = not np.allclose(self.orientation, self.last_orientation, atol=1e-6)
+
+        # Update movement tracking state if any change detected
+        if position_changed or orientation_changed:
+            self.is_currently_moving = True
+            self.last_movement_time = pygame.time.get_ticks()
+            self.last_position = self.position.copy()
+            self.last_orientation = self.orientation.copy()
+
+    def is_moving(self):
+        """
+        Checks if the camera is moving.
+
+        Returns:
+            bool: True if the camera has moved within the movement cooldown period,
+                 False if it hasn't.
+        """
+        current_time = pygame.time.get_ticks()
+        
+        # Reset movement state if cooldown period has elapsed
+        if self.is_currently_moving and (current_time - self.last_movement_time) > self.movement_cooldown:
+            self.is_currently_moving = False
+        
+        return self.is_currently_moving
+
+    def get_ray_from_mouse(self, mouse_pos, screen_size):
+        """
+        Generates a world-space ray from the camera through a screen-space point.
+        
+        Converts mouse coordinates to normalized device coordinates, then unprojects
+        through the inverse view-projection matrix to get a world-space ray.
         
         Args:
-            mouse_pos: (x, y) mouse position in screen coordinates
-            screen_size: (width, height) of the screen in pixels
+            mouse_pos (tuple): (x, y) mouse position in screen coordinates
+            screen_size (tuple): (width, height) of the screen in pixels
         
         Returns:
-            tuple: (ray_origin, ray_direction) where both are numpy arrays
+            tuple: (ray_origin, ray_direction) where:
+                  - ray_origin: numpy array [x, y, z] of ray start position
+                  - ray_direction: normalized numpy array [x, y, z] of ray direction
         """
-        return self._camera_system.get_ray_from_mouse(self, mouse_pos, screen_size)
+
+        self.updateViewMatrix()
+        
+        # Convert screen coordinates to normalized device coordinates (-1 to 1)
+        x = (2.0 * mouse_pos[0]) / screen_size[0] - 1.0
+        y = 1.0 - (2.0 * mouse_pos[1]) / screen_size[1]  # Flip y for screen space
+        
+        # Create clip space point at the near plane
+        clip_space = np.array([x, y, -1.0, 1.0])
+        
+        # Transform to world space through inverse view-projection matrix
+        view_projection_matrix = self.projectionMatrix @ self.viewMatrix
+        inverse_view_projection = inv(view_projection_matrix)
+        world_space = inverse_view_projection @ clip_space
+        
+        # Calculate and normalize ray direction
+        world_space_dir = world_space[:3] / world_space[3]
+        ray_direction = world_space_dir - self.position
+        
+        # Normalize ray_direction, checking for zero magnitude
+        norm_direction = np.linalg.norm(ray_direction)
+        if norm_direction > 1e-6: # Use a small epsilon
+            ray_direction = ray_direction / norm_direction
+        else:
+            # Handle zero direction case, e.g., return camera's forward direction
+            # Get forward direction from the camera's orientation matrix (third column, negated)
+            ray_direction = -self.orientation[:, 2] 
+            # Ensure it's normalized (should be if orientation is a rotation matrix)
+            norm_fallback = np.linalg.norm(ray_direction)
+            if norm_fallback > 1e-6:
+                ray_direction = ray_direction / norm_fallback
+            else:
+                ray_direction = np.array([0.0, 0.0, -1.0]) # Default fallback
+
+        return self.position, ray_direction
+
+    def setPerspective(self, angleOfView=50, aspectRatio=1, near=0.1, far=1000):
+        self.projectionMatrix = Transform.perspective(angleOfView, aspectRatio, near, far)
+
+    def setOrthographic(self, left=-1, right=1, bottom=-1, top=1, near=-1, far=1):
+        self.projectionMatrix = Transform.orthographic(left, right, bottom, top, near, far)

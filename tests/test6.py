@@ -292,10 +292,10 @@ class LitMeshViewerApp(Window):
             up=Vector3([0.0, 1.0, 0.0])
         )
         
-        # Update rotation angle based on time and rotation speed
+        # Update rotation angle based on time and rotation speed (degrees per second)
         delta_time = 1.0 / max(self.clock.get_fps(), 1.0)  # Get seconds per frame, avoid division by zero
-        if self.theta >= 360:
-            self.theta = 0
+        if self.theta == 360:
+            self.theta == 0
         self.theta = (self.theta + self.rotation_speed * delta_time)
 
     def render_opengl(self):

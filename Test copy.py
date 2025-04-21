@@ -12,6 +12,9 @@ from meshes.polyhedronGeo import PolyhedronGeometry
 from meshes.torusGeo import TorusGeometry
 from meshes.mesh_data import MeshData
 
+from helpers.camera import Camera
+from helpers.cameraController import CameraController
+
 class LitMeshViewerApp(Window):
     def __init__(self):
         # Initialize with window size
@@ -23,8 +26,12 @@ class LitMeshViewerApp(Window):
         self.height = self.screen_size[1]
         
         self.theta = 0
-        self.camera_pos = np.array([0.0, 0.0, 5.0])
-        self.target_pos = np.array([0.0, 0.0, 0.0])
+        self.camera = Camera(aspectRatio=800/600)
+
+        # Camera controller setup
+        self.camera_controller = CameraController()
+        self.camera_controller.add(self.camera)
+        self.camera_controller.setPosition([0.0, 0.0, 5.0])
         self.rotation_speed = 30.0  # Degrees per second
         
         # Active mesh type
@@ -223,12 +230,8 @@ class LitMeshViewerApp(Window):
                 self.width, self.height = 800, 600
         
         # Set up projection and view matrices
-        self.proj = Matrix44.perspective_projection(45, self.width/self.height, 0.1, 50.0)
-        self.view = Matrix44.look_at(
-            eye=Vector3(self.camera_pos),
-            target=Vector3(self.target_pos),
-            up=Vector3([0.0, 1.0, 0.0])
-        )
+        self.proj = self.camera.projectionMatrix
+        self.view = self.camera.viewMatrix
 
         # Get uniform locations
         self.proj_loc = glGetUniformLocation(self.shader, "projection")
@@ -252,51 +255,16 @@ class LitMeshViewerApp(Window):
         fps = self.clock.get_fps()
         self.fps_label.text = f"FPS: {fps:.1f}"
         
-        # Calculate camera movement vectors
-        front_vec = self.target_pos - self.camera_pos
-        front_vec = front_vec / np.linalg.norm(front_vec)  # Normalize
-        
-        # Calculate right vector (perpendicular to front and world up)
-        world_up = np.array([0.0, 1.0, 0.0])
-        right_vec = np.cross(front_vec, world_up)
-        right_vec = right_vec / np.linalg.norm(right_vec)  # Normalize
-        
-        # Handle camera movement
-        keys = pg.key.get_pressed()
-        speed = 0.1
-        movement = np.zeros(3)
-        
-        if keys[pg.K_a]:
-            movement -= right_vec * speed
-        if keys[pg.K_d]:
-            movement += right_vec * speed
-        if keys[pg.K_w]:
-            movement += front_vec * speed
-        if keys[pg.K_s]:
-            movement -= front_vec * speed
-        if keys[pg.K_q]:
-            # Move up
-            movement += np.array([0, 1, 0]) * speed
-        if keys[pg.K_e]:
-            # Move down
-            movement += np.array([0, -1, 0]) * speed
-            
-        # Apply movement to both camera and target
-        self.camera_pos += movement
-        self.target_pos += movement
-        
-        # Update view matrix based on camera position
-        self.view = Matrix44.look_at(
-            eye=Vector3(self.camera_pos),
-            target=Vector3(self.target_pos),
-            up=Vector3([0.0, 1.0, 0.0])
-        )
+        # Update the view matrix after position/orientation changes
+        self.camera.updateViewMatrix()
+        self.view = self.camera.viewMatrix
         
         # Update rotation angle based on time and rotation speed (degrees per second)
-        delta_time = 1.0 / max(self.clock.get_fps(), 1.0)  # Get seconds per frame, avoid division by zero
-        if self.theta == 360:
-            self.theta == 0
-        self.theta = (self.theta + self.rotation_speed * delta_time)
+        delta_time = self.clock.get_time() / 1000.0 # Use pygame clock's get_time for delta
+        if not self.paused: # Only rotate if not paused
+             self.theta = (self.theta + self.rotation_speed * delta_time) % 360 # Use modulo 360
+        self.camera_controller.update(self.input, delta_time)
+
 
     def render_opengl(self):
         glUseProgram(self.shader)

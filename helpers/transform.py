@@ -25,7 +25,7 @@ class Transform:
         try:
             return pyrr.matrix44.create_from_translation(
                 pyrr.Vector3([x, y, z]), dtype=np.float32
-            )
+            ).T
         except Exception as e:
             logger.log_error(e, f"Failed to create translation matrix with values ({x}, {y}, {z})")
             raise
@@ -55,7 +55,7 @@ class Transform:
 
             quat = pyrr.quaternion.cross(quat_y, quat_x)
             quat = pyrr.quaternion.cross(quat_z, quat)
-            return pyrr.matrix44.create_from_quaternion(quat, dtype=np.float32)
+            return pyrr.matrix44.create_from_quaternion(quat, dtype=np.float32).T
         except Exception as e:
             logger.log_error(e, f"Failed to create rotation matrix with angles ({angx}, {angy}, {angz}) radians")
             raise
@@ -74,7 +74,7 @@ class Transform:
             4x4 scaling matrix as numpy array
         """
         try:
-            return pyrr.matrix44.create_from_scale([x, y, z], dtype=np.float32)
+            return pyrr.matrix44.create_from_scale([x, y, z], dtype=np.float32).T
         except Exception as e:
             logger.log_error(e, f"Failed to create scale matrix with factors ({x}, {y}, {z})")
             raise
@@ -176,7 +176,7 @@ class Transform:
 
             # Multiply in TRS order: Scale first, then Rotate, then Translate
             # For matrix multiplication: t * r * s
-            return pyrr.matrix44.multiply(t, pyrr.matrix44.multiply(r, s))
+            return pyrr.matrix44.multiply(t, pyrr.matrix44.multiply(r, s)).T
         except Exception as e:
             context = f"Failed to compose transformation matrix: pos={position}, rot={rotation}, scale={scale}"
             logger.log_error(e, context)

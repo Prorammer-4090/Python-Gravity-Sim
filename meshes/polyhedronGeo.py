@@ -139,6 +139,14 @@ class PolyhedronGeometry(MeshData):
             e1 = [v1[i] - v0[i] for i in range(3)]
             e2 = [v2[i] - v0[i] for i in range(3)]
             face_normal = self.normalize(self.cross_product(e1, e2))
+            
+            # Ensure normal points outward (away from origin)
+            # Calculate face center
+            center = [(v0[i] + v1[i] + v2[i]) / 3 for i in range(3)]
+            
+            # If dot product is negative, the normal points inward, so flip it
+            if self.dot_product(center, face_normal) < 0:
+                face_normal = [-n for n in face_normal]
 
             # Add face normal to each vertex's accumulated normal
             for vertex_index in face:
