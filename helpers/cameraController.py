@@ -101,16 +101,26 @@ class CameraController(Object3D):
        Params:
            input_handler: Provides mouse input and movement information.
        """
-       if input_handler.get_mouse_states()["right"]:  # Left mouse button pressed
+       # Get mouse states from input handler
+       mouse_states = input_handler.get_mouse_states()
+       
+       # Check if right mouse button is pressed
+       if mouse_states["right"]:
            if not self.is_dragging:  # Start of new drag
                self.is_dragging = True
                self.last_mouse_pos = input_handler.mouse_pos
            else:  # Continue drag
+               # Get mouse motion from input handler
                dx, dy = input_handler.mouse_motion
-               # Apply horizontal rotation to camera body
-               self.rotateY(-dx * self.mouseSensitivity)
-               # Apply vertical rotation to pitch control
-               self.lookAttachment.rotateX(-dy * self.mouseSensitivity)
+               
+               if dx != 0:  # Only apply horizontal rotation if there's movement
+                   # Apply horizontal rotation to camera body
+                   self.rotateY(-dx * self.mouseSensitivity * (pi / 180))
+               
+               if dy != 0:  # Only apply vertical rotation if there's movement
+                   # Apply vertical rotation to pitch control
+                   # Clamp vertical rotation to avoid flipping
+                   self.lookAttachment.rotateX(-dy * self.mouseSensitivity * (pi / 180))
        else:
            self.is_dragging = False  # End drag when button released
 

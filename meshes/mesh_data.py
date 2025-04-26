@@ -60,9 +60,10 @@ class MeshData:
     def apply_mat(self, matrix: np.ndarray, variable_name: str = "v_pos") -> None:
         """
         Apply a transformation matrix to mesh vertices and normals.
+        Handles normals correctly using the inverse transpose for non-uniform scaling.
         
         Args:
-            matrix: 4x4 transformation matrix
+            matrix: 4x4 transformation matrix (Column-Major)
             variable_name: Name of the position attribute (default: "v_pos")
         """
         if variable_name not in self.attributes:
@@ -72,25 +73,52 @@ class MeshData:
         # Get position data
         pos_data = self.attributes[variable_name][1]
         
-        # Transform positions
-        ones = np.ones((len(pos_data), 1))
-        homo = np.hstack((np.array(pos_data), ones))
+        # Transform positions (Correct for Column-Major)
+        pos_array = np.array(pos_data)
+        ones = np.ones((len(pos_array), 1))
+        homo = np.hstack((pos_array, ones)) # Nx4
+        # matrix (4x4) @ homo.T (4xN) -> 4xN -> .T -> Nx4 -> [:,:3] -> Nx3
         transformed = (matrix @ homo.T).T[:, :3]
         self.attributes[variable_name] = (self.attributes[variable_name][0], transformed.tolist())
 
-        # Extract rotation matrix
-        rot_matrix = np.array(matrix)[:3, :3]
+        # --- Correct Normal Transformation ---
+        # Extract upper-left 3x3 matrix
+        mat33 = matrix[:3, :3]
+        try:
+            # Calculate inverse transpose for normal transformation
+            inv_transpose_mat33 = np.linalg.inv(mat33).T
+            
+            # Transform vertex normals if they exist
+            if "v_norm" in self.attributes:
+                v_norm_data = self.attributes["v_norm"][1]
+                v_norm_array = np.array(v_norm_data) # Nx3
+                # inv_transpose_mat33 (3x3) @ v_norm_array.T (3xN) -> 3xN -> .T -> Nx3
+                transformed_v_norm = (inv_transpose_mat33 @ v_norm_array.T).T
+                # Renormalize normals after transformation
+                norms = np.linalg.norm(transformed_v_norm, axis=1, keepdims=True)
+                # Avoid division by zero for zero-length normals
+                valid_norms = norms > 1e-8 
+                transformed_v_norm[valid_norms] /= norms[valid_norms]
+                self.attributes["v_norm"] = (self.attributes["v_norm"][0], transformed_v_norm.tolist())
+            
+            # Transform face normals if they exist
+            if "f_norm" in self.attributes:
+                f_norm_data = self.attributes["f_norm"][1]
+                f_norm_array = np.array(f_norm_data) # Nx3
+                # inv_transpose_mat33 (3x3) @ f_norm_array.T (3xN) -> 3xN -> .T -> Nx3
+                transformed_f_norm = (inv_transpose_mat33 @ f_norm_array.T).T
+                # Renormalize normals
+                norms = np.linalg.norm(transformed_f_norm, axis=1, keepdims=True)
+                valid_norms = norms > 1e-8
+                transformed_f_norm[valid_norms] /= norms[valid_norms]
+                self.attributes["f_norm"] = (self.attributes["f_norm"][0], transformed_f_norm.tolist())
 
-        # Transform normals if they exist
-        if "v_norm" in self.attributes:
-            v_norm_data = self.attributes["v_norm"][1]
-            transformed_v_norm = (rot_matrix @ np.array(v_norm_data).T).T.tolist()
-            self.attributes["v_norm"] = (self.attributes["v_norm"][0], transformed_v_norm)
-        
-        if "f_norm" in self.attributes:
-            f_norm_data = self.attributes["f_norm"][1]
-            transformed_f_norm = (rot_matrix @ np.array(f_norm_data).T).T.tolist()
-            self.attributes["f_norm"] = (self.attributes["f_norm"][0], transformed_f_norm)
+        except np.linalg.LinAlgError:
+            logger.log_message("Matrix has no inverse, cannot transform normals correctly.", level="WARNING")
+            # Optionally skip normal transformation or use the original matrix as a fallback
+            # Fallback (less accurate for non-uniform scale):
+            # rot_matrix = mat33
+            # ... apply rot_matrix as before ...
 
     def merge(self, other_geometry) -> None:
         """

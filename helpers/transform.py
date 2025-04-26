@@ -1,5 +1,6 @@
 import pyrr
 import numpy as np
+import math  # Import math module
 from typing import Union, Tuple, List, Optional
 from core.logger import logger
 
@@ -20,12 +21,13 @@ class Transform:
             z: Translation along z-axis
             
         Returns:
-            4x4 translation matrix as numpy array
+            4x4 translation matrix as numpy array (Column-Major)
         """
         try:
+            # Add .T to convert Pyrr's row-major to column-major
             return pyrr.matrix44.create_from_translation(
                 pyrr.Vector3([x, y, z]), dtype=np.float32
-            ).T
+            ).T 
         except Exception as e:
             logger.log_error(e, f"Failed to create translation matrix with values ({x}, {y}, {z})")
             raise
@@ -33,15 +35,15 @@ class Transform:
     @staticmethod
     def rotation(x: float, y: float, z: float) -> np.ndarray:
         """
-        Create a rotation matrix from Euler angles (in radians).
+        Create a rotation matrix from Euler angles (in degrees).
         
         Args:
-            angx: Rotation around x-axis in radians
-            angy: Rotation around y-axis in radians
-            angz: Rotation around z-axis in radians
+            x: Rotation around x-axis in degrees
+            y: Rotation around y-axis in degrees
+            z: Rotation around z-axis in degrees
             
         Returns:
-            4x4 rotation matrix as numpy array
+            4x4 rotation matrix as numpy array (Column-Major)
         """
         
         angx = Transform.deg_to_rad(x)
@@ -49,15 +51,10 @@ class Transform:
         angz = Transform.deg_to_rad(z)
         
         try:
-            quat_x = pyrr.quaternion.create_from_x_rotation(angx)
-            quat_y = pyrr.quaternion.create_from_y_rotation(angy)
-            quat_z = pyrr.quaternion.create_from_z_rotation(angz)
-
-            quat = pyrr.quaternion.cross(quat_y, quat_x)
-            quat = pyrr.quaternion.cross(quat_z, quat)
-            return pyrr.matrix44.create_from_quaternion(quat, dtype=np.float32).T
+            # Add .T to convert Pyrr's row-major to column-major
+            return pyrr.matrix44.create_from_eulers(np.array([angx, angy, angz]), dtype=np.float32).T
         except Exception as e:
-            logger.log_error(e, f"Failed to create rotation matrix with angles ({angx}, {angy}, {angz}) radians")
+            logger.log_error(e, f"Failed to create rotation matrix with angles ({x}, {y}, {z}) degrees")
             raise
 
     @staticmethod
@@ -71,9 +68,10 @@ class Transform:
             z: Scale factor along z-axis
             
         Returns:
-            4x4 scaling matrix as numpy array
+            4x4 scaling matrix as numpy array (Column-Major)
         """
         try:
+            # Add .T to convert Pyrr's row-major to column-major
             return pyrr.matrix44.create_from_scale([x, y, z], dtype=np.float32).T
         except Exception as e:
             logger.log_error(e, f"Failed to create scale matrix with factors ({x}, {y}, {z})")
@@ -85,13 +83,19 @@ class Transform:
         Calculate the inverse of a matrix.
         
         Args:
-            matrix: Input 4x4 matrix
+            matrix: Input 4x4 matrix (Column-Major)
             
         Returns:
-            Inverse of the input matrix
+            Inverse of the input matrix (Column-Major)
         """
+        # Note: Inverse needs care. If input is column-major, inverse is column-major.
+        # If the input 'matrix' is assumed column-major (coming from elsewhere in the app)
+        # then pyrr expects row-major, so transpose before, and transpose back after.
         try:
-            return pyrr.matrix44.inverse(matrix)
+            # Assuming input 'matrix' is column-major as used elsewhere in the app
+            row_major_matrix = matrix.T
+            inverse_row_major = pyrr.matrix44.inverse(row_major_matrix)
+            return inverse_row_major.T # Convert back to column-major
         except Exception as e:
             logger.log_error(e, "Failed to calculate matrix inverse")
             raise
@@ -107,8 +111,9 @@ class Transform:
         Returns:
             Transposed matrix
         """
+        # This function's purpose is transposition, so it just does that.
         try:
-            return pyrr.matrix44.transpose(matrix)
+            return pyrr.matrix44.transpose(matrix) # Or just matrix.T
         except Exception as e:
             logger.log_error(e, "Failed to transpose matrix")
             raise
@@ -131,19 +136,21 @@ class Transform:
             raise
     
     @staticmethod
-    def multiply(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    def multiply(m1: np.ndarray, m2: np.ndarray) -> np.ndarray:
         """
         Multiply two matrices.
         
         Args:
-            a: First matrix
-            b: Second matrix
+            m1: First matrix
+            m2: Second matrix
             
         Returns:
-            Result of a * b
+            Result of m1 @ m2
         """
+        # Assuming inputs m1, m2 are column-major
+        # Standard column-major multiplication: M = M1 @ M2
         try:
-            return pyrr.matrix44.multiply(a, b)
+            return m1 @ m2
         except Exception as e:
             logger.log_error(e, "Failed to multiply matrices")
             raise
@@ -176,7 +183,7 @@ class Transform:
 
             # Multiply in TRS order: Scale first, then Rotate, then Translate
             # For matrix multiplication: t * r * s
-            return pyrr.matrix44.multiply(t, pyrr.matrix44.multiply(r, s)).T
+            return pyrr.matrix44.multiply(t, pyrr.matrix44.multiply(r, s))
         except Exception as e:
             context = f"Failed to compose transformation matrix: pos={position}, rot={rotation}, scale={scale}"
             logger.log_error(e, context)
@@ -197,47 +204,54 @@ class Transform:
             up: Up vector, default is (0, 1, 0)
             
         Returns:
-            View matrix
+            View matrix (Column-Major)
         """
         try:
+            # Add .T to convert Pyrr's row-major to column-major
             return pyrr.matrix44.create_look_at(
                 eye=pyrr.Vector3(eye),
                 target=pyrr.Vector3(target),
                 up=pyrr.Vector3(up),
                 dtype=np.float32
-            )
+            ).T
         except Exception as e:
             context = f"Failed to create look_at matrix: eye={eye}, target={target}, up={up}"
             logger.log_error(e, context)
             raise
     
     @staticmethod
-    def perspective(
-        fov: float, 
-        aspect: float, 
-        near: float, 
-        far: float
-    ) -> np.ndarray:
+    def perspective(fov: float, aspect: float, near: float, far: float) -> np.ndarray:
         """
-        Create a perspective projection matrix.
+        Create a perspective projection matrix (Column-Major).
+        Manually calculated based on standard OpenGL formula.
         
         Args:
-            fov: Field of view in radians
+            fov: Field of view in degrees (vertical)
             aspect: Aspect ratio (width/height)
             near: Near clipping plane distance
             far: Far clipping plane distance
             
         Returns:
-            Perspective projection matrix
+            Perspective projection matrix (Column-Major)
         """
         try:
-            return pyrr.matrix44.create_perspective_projection(
-                fovy=fov,
-                aspect=aspect,
-                near=near,
-                far=far,
-                dtype=np.float32
-            )
+            # Convert FoV to radians
+            fov_rad = Transform.deg_to_rad(fov) 
+            # Calculate 'f' from tangent of half FoV
+            f = 1.0 / math.tan(fov_rad / 2.0)
+            
+            # Initialize a 4x4 zero matrix
+            matrix = np.zeros((4, 4), dtype=np.float32)
+            
+            # Populate matrix elements according to column-major perspective formula
+            matrix[0, 0] = f / aspect
+            matrix[1, 1] = f
+            matrix[2, 2] = (far + near) / (near - far)
+            matrix[2, 3] = (2 * far * near) / (near - far)
+            matrix[3, 2] = -1.0
+            # matrix[3, 3] remains 0, which is correct
+            
+            return matrix
         except Exception as e:
             context = f"Failed to create perspective matrix: fov={fov}, aspect={aspect}, near={near}, far={far}"
             logger.log_error(e, context)
@@ -264,9 +278,10 @@ class Transform:
             far: Far plane distance
             
         Returns:
-            Orthographic projection matrix
+            Orthographic projection matrix (Column-Major)
         """
         try:
+            # Add .T to convert Pyrr's row-major to column-major
             return pyrr.matrix44.create_orthogonal_projection(
                 left=left,
                 right=right,
@@ -275,7 +290,7 @@ class Transform:
                 near=near,
                 far=far,
                 dtype=np.float32
-            )
+            ).T
         except Exception as e:
             context = f"Failed to create orthographic matrix: left={left}, right={right}, bottom={bottom}, top={top}, near={near}, far={far}"
             logger.log_error(e, context)

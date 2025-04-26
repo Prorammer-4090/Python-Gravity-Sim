@@ -6,14 +6,14 @@ from core.compile_shader import CompileShader
 from pyrr import Matrix44, Vector3
 from core.window import Window
 from core.ui import Button, Label
+from helpers.camera import Camera
+from helpers.cameraController import CameraController
+from helpers.transform import Transform
 
 # Import our mesh classes
 from meshes.polyhedronGeo import PolyhedronGeometry
 from meshes.torusGeo import TorusGeometry
 from meshes.mesh_data import MeshData
-
-from helpers.camera import Camera
-from helpers.cameraController import CameraController
 
 class LitMeshViewerApp(Window):
     def __init__(self):
@@ -26,12 +26,12 @@ class LitMeshViewerApp(Window):
         self.height = self.screen_size[1]
         
         self.theta = 0
-        self.camera = Camera(aspectRatio=800/600)
-
-        # Camera controller setup
-        self.camera_controller = CameraController()
+        
+        # Initialize camera and camera controller
+        self.camera = Camera(angleOfView=60, aspectRatio=self.width/self.height, near=0.1, far=1000.0)
+        self.camera_controller = CameraController(unitsPerSecond=3, degreesPerSecond=60)
         self.camera_controller.add(self.camera)
-        self.camera_controller.setPosition([0.0, 0.0, 5.0])
+        self.camera_controller.setPosition([0.0, 0, 5.5])
         self.rotation_speed = 30.0  # Degrees per second
         
         # Active mesh type
@@ -220,19 +220,9 @@ class LitMeshViewerApp(Window):
         # Load initial mesh
         self.load_mesh()
         
-        # Get dimensions from pygame's display surface if needed
-        if not hasattr(self, 'width') or not hasattr(self, 'height'):
-            surface = pg.display.get_surface()
-            if surface:
-                self.width, self.height = surface.get_size()
-            else:
-                # Fallback to default values
-                self.width, self.height = 800, 600
+        # Update camera's aspect ratio based on window dimensions
+        self.camera.setPerspective(angleOfView=60, aspectRatio=self.width/self.height, near=0.1, far=1000.0)
         
-        # Set up projection and view matrices
-        self.proj = self.camera.projectionMatrix
-        self.view = self.camera.viewMatrix
-
         # Get uniform locations
         self.proj_loc = glGetUniformLocation(self.shader, "projection")
         self.view_loc = glGetUniformLocation(self.shader, "view")
@@ -245,8 +235,8 @@ class LitMeshViewerApp(Window):
         self.use_custom_color_loc = glGetUniformLocation(self.shader, "useCustomColor")
 
         # Set initial projection matrix
-        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, self.proj.astype(np.float32))
-        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.view.astype(np.float32))
+        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, self.camera.projectionMatrix)
+        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.camera.viewMatrix)
 
     def update(self):
         super().update()
@@ -255,16 +245,15 @@ class LitMeshViewerApp(Window):
         fps = self.clock.get_fps()
         self.fps_label.text = f"FPS: {fps:.1f}"
         
-        # Update the view matrix after position/orientation changes
-        self.camera.updateViewMatrix()
-        self.view = self.camera.viewMatrix
-        
         # Update rotation angle based on time and rotation speed (degrees per second)
-        delta_time = self.clock.get_time() / 1000.0 # Use pygame clock's get_time for delta
-        if not self.paused: # Only rotate if not paused
-             self.theta = (self.theta + self.rotation_speed * delta_time) % 360 # Use modulo 360
+        delta_time = 1.0 / max(self.clock.get_fps(), 1.0)  # Get seconds per frame, avoid division by zero
+        if self.theta == 360:
+            self.theta = 0
+        self.theta = (self.theta + self.rotation_speed * delta_time) % 360
+        
+        # Update camera controls
         self.camera_controller.update(self.input, delta_time)
-
+        self.camera.updateViewMatrix()
 
     def render_opengl(self):
         glUseProgram(self.shader)
@@ -281,8 +270,9 @@ class LitMeshViewerApp(Window):
         glUniform3f(self.mesh_color_loc, *self.mesh_color)
         glUniform1i(self.use_custom_color_loc, int(self.use_custom_color))
 
-        # Apply view matrix
-        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.view.astype(np.float32))
+        # Apply projection and view matrices from camera
+        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, self.camera.projectionMatrix)
+        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.camera.viewMatrix)
 
         # Create and apply model matrix with rotation
         model = Matrix44.from_y_rotation(np.radians(self.theta)) @ Matrix44.from_x_rotation(np.radians(self.theta * 0.5))
@@ -307,6 +297,21 @@ class LitMeshViewerApp(Window):
         # Unbind VAO and shader
         glBindVertexArray(0)
         glUseProgram(0)
+
+    # Add a method to handle window resize events
+    def resize_callback(self, width, height):
+        # Update stored dimensions
+        self.width = width
+        self.height = height
+        
+        # Update camera projection matrix with new aspect ratio
+        self.camera.setPerspective(angleOfView=60, aspectRatio=width/height, near=0.1, far=1000.0)
+        
+        # Update pygame viewport
+        pg.display.set_mode((width, height), pg.OPENGL | pg.DOUBLEBUF | pg.RESIZABLE)
+        
+        # Update OpenGL viewport
+        glViewport(0, 0, width, height)
 
 
 if __name__ == '__main__':

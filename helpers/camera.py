@@ -28,7 +28,8 @@ class Camera(Object3D):
     def __init__(self, angleOfView=60, aspectRatio=1, near=0.1, far=1000):
         super().__init__()
         # Create projection matrix
-        self.projectionMatrix = Transform.perspective(angleOfView, aspectRatio, near, far)
+        self.projectionMatrix = Transform.perspective(
+            angleOfView, aspectRatio, near, far)
         self.viewMatrix = Transform.identity()
         
         # Initialize camera state tracking variables
@@ -47,15 +48,20 @@ class Camera(Object3D):
         """
         Calculates view matrix and updates the position tracking variables.
         """
-        self.viewMatrix = inv(self.getWorldMatrix())
-
-        # Extract current position and orientation from world matrix
+        # Get the world matrix from the parent hierarchy
         world_matrix = self.getWorldMatrix()
+        
+        # Calculate view matrix as inverse of world matrix
+        self.viewMatrix = inv(world_matrix)
+
+        # Extract current position from world matrix
         self.position = np.array([
             world_matrix[0, 3],
             world_matrix[1, 3],
             world_matrix[2, 3]
         ])
+        
+        # Extract orientation (rotation) from world matrix
         self.orientation = world_matrix[:3, :3]
 
         # Detect changes in position or orientation
@@ -117,7 +123,11 @@ class Camera(Object3D):
         world_space = inverse_view_projection @ clip_space
         
         # Calculate and normalize ray direction
-        world_space_dir = world_space[:3] / world_space[3]
+        if world_space[3] != 0:  # Check for division by zero
+            world_space_dir = world_space[:3] / world_space[3]
+        else:
+            world_space_dir = world_space[:3]
+            
         ray_direction = world_space_dir - self.position
         
         # Normalize ray_direction, checking for zero magnitude
@@ -137,8 +147,12 @@ class Camera(Object3D):
 
         return self.position, ray_direction
 
-    def setPerspective(self, angleOfView=50, aspectRatio=1, near=0.1, far=1000):
-        self.projectionMatrix = Transform.perspective(angleOfView, aspectRatio, near, far)
+    def setPerspective(self, angleOfView=60, aspectRatio=1, near=0.1, far=1000):
+        """Set a perspective projection matrix with the given parameters"""
+        # Transform.perspective now handles degree-to-radian conversion internally
+        self.projectionMatrix = Transform.perspective(
+            angleOfView, aspectRatio, near, far) # Pass degrees directly
 
     def setOrthographic(self, left=-1, right=1, bottom=-1, top=1, near=-1, far=1):
+        """Set an orthographic projection matrix with the given parameters"""
         self.projectionMatrix = Transform.orthographic(left, right, bottom, top, near, far)

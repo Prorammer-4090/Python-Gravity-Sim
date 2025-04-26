@@ -82,22 +82,25 @@ class Object3D:
         self.applyMatrix(Transform.scale(s), localCoord)
 
     def getPosition(self):
-        """Get the object's position in local space."""
+        """Get the object's position in local space (Column-Major)."""
+        # Corrected indices for column-major
         return [self.transform.item(0, 3),
                 self.transform.item(1, 3),
                 self.transform.item(2, 3)]
 
     def getWorldPosition(self):
-        """Get the object's position in world space."""
+        """Get the object's position in world space (Column-Major)."""
         worldTransform = self.getWorldMatrix()
-        return [worldTransform.item(3, 0),
-                worldTransform.item(3, 1),
-                worldTransform.item(3, 2)]
+        # Corrected indices for column-major
+        return [worldTransform.item(0, 3),
+                worldTransform.item(1, 3),
+                worldTransform.item(2, 3)]
 
     def setPosition(self, position):
-        """Set the object's position in local space."""
+        """Set the object's position in local space (Column-Major)."""
         if not (isinstance(position, (list, tuple)) and len(position) == 3):
             raise ValueError("Position must be a list or tuple of length 3.")
+        # Indices are already correct for column-major
         self.transform[0, 3] = position[0]
         self.transform[1, 3] = position[1]
         self.transform[2, 3] = position[2]
@@ -154,12 +157,33 @@ class Object3D:
                             self.transform[2][0:3]])
 
     def getDirection(self):
-        forward = numpy.array([0, 0, -1])
-        return list(self.getRotationMatrix() @ forward)
+        # Consider clarifying if this is local or world direction intended.
+        # If world direction is needed, use the world matrix's rotation part.
+        # world_rotation = self.getWorldMatrix()[:3, :3]
+        # forward = numpy.array([0, 0, -1]) 
+        # return list(world_rotation @ forward)
+        
+        # Current implementation returns direction relative to parent frame
+        local_rotation = self.getRotationMatrix()
+        forward = numpy.array([0, 0, -1]) 
+        return list(local_rotation @ forward)
 
     def setDirection(self, direction):
-        position = self.getPosition()
-        targetPosition = [position[0] + direction[0],
-                          position[1] + direction[1],
-                          position[2] + direction[2]]
-        self.lookAt(targetPosition)
+        # Use world position to calculate the target for lookAt
+        world_position = numpy.array(self.getWorldPosition())
+        # Ensure direction is a numpy array for vector addition
+        direction_vec = numpy.array(direction)
+        # Normalize the direction vector to ensure it only represents direction, not magnitude
+        norm_direction = numpy.linalg.norm(direction_vec)
+        if norm_direction > 1e-6:
+            normalized_direction = direction_vec / norm_direction
+        else:
+            # Avoid division by zero; maybe default to a forward direction or skip?
+            # For now, let's just use the non-normalized (potentially zero) vector
+            # which lookAt might handle or ignore.
+            normalized_direction = direction_vec 
+
+        # Calculate a target point slightly ahead in the desired world direction
+        # Adding the normalized direction moves the target 1 unit away.
+        targetPosition = world_position + normalized_direction 
+        self.lookAt(targetPosition.tolist()) # lookAt expects a list/tuple
