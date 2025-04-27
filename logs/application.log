@@ -64,3 +64,83 @@
 [2025-04-27 10:37:09] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 6144 vertices
 [2025-04-27 10:37:10] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 9600 vertices
 [2025-04-27 10:37:11] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 13824 vertices
+[2025-04-27 12:37:05] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:04:08] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:04:12] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:04:22] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:04:31] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:04:39] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:04:39] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 240 vertices
+[2025-04-27 13:04:39] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:04:39] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 960 vertices
+[2025-04-27 13:04:46] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:22:13] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:22:16] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:16] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 108 vertices
+[2025-04-27 13:22:16] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:16] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 384 vertices
+[2025-04-27 13:22:16] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:16] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 12 vertices
+[2025-04-27 13:22:17] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:17] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 24 vertices
+[2025-04-27 13:22:17] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:17] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 36 vertices
+[2025-04-27 13:22:18] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:18] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:22:25] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:25] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 108 vertices
+[2025-04-27 13:22:25] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:25] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 384 vertices
+[2025-04-27 13:22:27] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:27] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 1536 vertices
+[2025-04-27 13:22:27] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:27] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 3456 vertices
+[2025-04-27 13:22:29] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:29] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 6144 vertices
+[2025-04-27 13:22:29] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:29] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 9600 vertices
+[2025-04-27 13:22:30] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:22:30] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 13824 vertices
+[2025-04-27 13:23:54] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:24:02] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:24:05] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:24:08] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:24:10] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:24:19] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:24:42] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:42] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 240 vertices
+[2025-04-27 13:24:43] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:43] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 960 vertices
+[2025-04-27 13:24:44] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:44] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 3840 vertices
+[2025-04-27 13:24:45] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:45] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 15360 vertices
+[2025-04-27 13:24:46] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:51] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 61440 vertices
+[2025-04-27 13:24:53] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:53] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 108 vertices
+[2025-04-27 13:24:53] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:53] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 432 vertices
+[2025-04-27 13:24:54] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:54] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 1728 vertices
+[2025-04-27 13:24:54] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:54] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 6912 vertices
+[2025-04-27 13:24:55] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:24:56] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 27648 vertices
+[2025-04-27 13:24:56] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:25:12] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 110592 vertices
+[2025-04-27 13:25:32] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:25:32] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 384 vertices
+[2025-04-27 13:25:48] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:25:48] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 1536 vertices
+[2025-04-27 13:25:50] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:25:50] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 3456 vertices
+[2025-04-27 13:25:52] [INFO] [meshes.mesh_data.del_buffers:254] OpenGL buffers successfully deleted
+[2025-04-27 13:25:52] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 6144 vertices
+[2025-04-27 13:30:57] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:31:02] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:31:08] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:36:09] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:37:39] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:39:03] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices
+[2025-04-27 13:42:07] [INFO] [meshes.mesh_data.gpu_load:206] Mesh loaded to GPU with 60 vertices

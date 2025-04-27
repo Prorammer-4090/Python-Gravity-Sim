@@ -10,200 +10,152 @@ from core.ui import Button, Label
 from helpers.camera import Camera
 from helpers.cameraController import CameraController
 from helpers.transform import Transform
-
-# Import our mesh classes
-from meshes.polyhedronGeo import PolyhedronGeometry
-from meshes.torusGeo import TorusGeometry
-from meshes.mesh_data import MeshData
+# Import managers and renderer
+from helpers.mesh_manager import MeshManager       # Import MeshManager
+from helpers.lighting_manager import LightingManager # Import LightingManager
+from core.renderer import Renderer             # Keep Renderer import
 
 class LitMeshViewerApp(Window):
     def __init__(self):
-        # Initialize with window size
         self.screen_size = [800, 600]
         super().__init__(self.screen_size)
-        
-        # Store dimensions explicitly
+
         self.width = self.screen_size[0]
         self.height = self.screen_size[1]
-        
+
         self.theta = 0
-        self.rotation_speed = 30.0  # Degrees per second
-        
-        # Initialize Camera and Controller (replacing manual camera position)
+        self.rotation_speed = 30.0
+
+        # Camera setup (remains the same)
         self.camera_controller = CameraController(unitsPerSecond=2, degreesPerSecond=60)
         self.camera = Camera(aspectRatio=self.width / self.height)
-        self.camera_controller.setPosition([0, 0, 5])  # Set initial position
+        self.camera_controller.setPosition([0, 0, 5])
         self.camera_controller.add(self.camera)
-        
-        # Active mesh type
-        self.current_mesh_type = "icosahedron"
-        self.mesh_subdivisions = 0
-        self.num_vertices = 0
-        
-        # Lighting parameters
-        self.ambient_strength = 0.5
-        self.ambient_color = [1.0, 1.0, 1.0]  # White ambient light
-        self.mesh_color = [0.0, 0.7, 1.0]     # Default blue color
-        self.use_custom_color = True          # Use the uniform color by default
-        
-        # Add UI elements
-        self.fps_label = self.ui_manager.add_element(
-            Label(10, 10, "FPS: 0", color=(255, 255, 0), font_family="Fonts/Silkscreen-Regular.ttf")
-        )
-        
-        self.mesh_label = self.ui_manager.add_element(
-            Label(10, 40, f"Mesh: {self.current_mesh_type}", color=(255, 255, 0), 
-                  font_family="Fonts/Silkscreen-Regular.ttf")
-        )
-        
-        self.subdivision_label = self.ui_manager.add_element(
-            Label(10, 70, f"Subdivisions: {self.mesh_subdivisions}", color=(255, 255, 0), 
-                  font_family="Fonts/Silkscreen-Regular.ttf")
-        )
-        
-        self.num_vertices_label = self.ui_manager.add_element(
-            Label(600, 10, f"Vertices: {self.num_vertices}", color=(255, 255, 0), 
-                  font_family="Fonts/Silkscreen-Regular.ttf")
-        )
-        
-        self.ambient_label = self.ui_manager.add_element(
-            Label(600, 40, f"Ambient: {self.ambient_strength:.1f}", color=(255, 255, 0), 
-                  font_family="Fonts/Silkscreen-Regular.ttf")
-        )
-        
-        self.color_mode_label = self.ui_manager.add_element(
-            Label(600, 70, "Using Custom Color", color=(255, 255, 0), 
-                  font_family="Fonts/Silkscreen-Regular.ttf")
-        )
-        
-        # Mesh control buttons
-        self.next_mesh_button = self.ui_manager.add_element(
-            Button(10, 100, 150, 30, "Next Mesh", self.next_mesh, 
-                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255), font_size=18)
-        )
-        
-        self.increase_subdiv_button = self.ui_manager.add_element(
-            Button(10, 140, 200, 30, "Add Subdivision", self.increase_subdivision, 
-                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
-                   font_size=18
-                   )
-        )
-        
-        self.wireframe_button = self.ui_manager.add_element(
-            Button(10, 180, 200, 30, "Toggle Wireframe", self.toggle_wireframe, 
-                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
-                   font_size=16)
-        )
-        
-        self.increase_ambient_button = self.ui_manager.add_element(
-            Button(10, 220, 200, 30, "Increase Ambient", self.increase_ambient, 
-                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
-                   font_size=16)
-        )
-        
-        self.decrease_ambient_button = self.ui_manager.add_element(
-            Button(10, 260, 200, 30, "Decrease Ambient", self.decrease_ambient, 
-                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
-                   font_size=16)
-        )
-        
-        self.toggle_color_button = self.ui_manager.add_element(
-            Button(10, 300, 200, 30, "Toggle Color Mode", self.toggle_color_mode, 
-                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
-                   font_size=16)
-        )
-        
-        self.cycle_color_button = self.ui_manager.add_element(
-            Button(10, 340, 200, 30, "Cycle Mesh Color", self.cycle_color, 
-                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
-                   font_size=16)
-        )
-        
+
+        # Create Managers
+        try:
+            self.mesh_manager = MeshManager(initial_mesh_type="icosahedron")
+        except Exception as e:
+            print(f"Error initializing MeshManager: {e}")
+            pg.quit()
+            quit() # Exit if mesh manager fails (e.g., initial load fails)
+
+        self.lighting_manager = LightingManager(initial_ambient_strength=0.5)
+
         # App state
         self.paused = False
         self.wireframe = False
-        self.mesh_types = ["tetrahedron", "octahedron", "cube", "icosahedron", "dodecahedron", "torus"]
-        
-        # Predefined colors for cycling
-        self.color_presets = [
-            [0.0, 0.7, 1.0],  # Blue
-            [0.0, 0.8, 0.4],  # Green
-            [1.0, 0.4, 0.0],  # Orange
-            [0.8, 0.2, 0.8],  # Purple
-            [1.0, 0.8, 0.0],  # Yellow
-        ]
-        self.color_index = 0
-    
-    def next_mesh(self):
-        # Cycle to the next mesh type
-        current_index = self.mesh_types.index(self.current_mesh_type)
-        next_index = (current_index + 1) % len(self.mesh_types)
-        self.current_mesh_type = self.mesh_types[next_index]
-        self.mesh_label.text = f"Mesh: {self.current_mesh_type}"
-        
-        # Reset subdivisions when changing mesh type
-        self.mesh_subdivisions = 0
-        self.subdivision_label.text = f"Subdivisions: {self.mesh_subdivisions}"
-        
-        # Reload the mesh
-        self.load_mesh()
-    
-    def increase_subdivision(self):
-        # Increase subdivision level (max 5 to prevent performance issues)
-        if self.mesh_subdivisions < 5:
-            self.mesh_subdivisions += 1
-            self.subdivision_label.text = f"Subdivisions: {self.mesh_subdivisions}"
-            self.load_mesh()
-    
-    def toggle_wireframe(self):
-        # Toggle wireframe rendering mode
+
+        # Renderer instance
+        self.renderer = None # Will be created in initialize
+
+        # --- UI Setup (Use managers for initial values) ---
+        mesh_type, subdivisions, num_vertices = self.mesh_manager.get_mesh_info()
+        ambient_strength = self.lighting_manager.get_ambient_strength()
+        color_mode_str = self.lighting_manager.get_color_mode_string()
+
+        self.fps_label = self.ui_manager.add_element(
+            Label(10, 10, "FPS: 0", color=(255, 255, 0), font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        self.mesh_label = self.ui_manager.add_element(
+            Label(10, 40, f"Mesh: {mesh_type}", color=(255, 255, 0),
+                  font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        self.subdivision_label = self.ui_manager.add_element(
+            Label(10, 70, f"Subdivisions: {subdivisions}", color=(255, 255, 0),
+                  font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        self.num_vertices_label = self.ui_manager.add_element(
+            Label(600, 10, f"Vertices: {num_vertices}", color=(255, 255, 0),
+                  font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        self.ambient_label = self.ui_manager.add_element(
+            Label(600, 40, f"Ambient: {ambient_strength:.1f}", color=(255, 255, 0),
+                  font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        self.color_mode_label = self.ui_manager.add_element(
+            Label(600, 70, color_mode_str, color=(255, 255, 0),
+                  font_family="Fonts/Silkscreen-Regular.ttf")
+        )
+        # --- Buttons (Link to handler methods) ---
+        self.next_mesh_button = self.ui_manager.add_element(
+            Button(10, 100, 150, 30, "Next Mesh", self.handle_next_mesh, # Use handler
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255), font_size=18)
+        )
+        self.increase_subdiv_button = self.ui_manager.add_element(
+            Button(10, 140, 200, 30, "Add Subdivision", self.handle_increase_subdivision, # Use handler
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=18)
+        )
+        self.wireframe_button = self.ui_manager.add_element(
+            Button(10, 180, 200, 30, "Toggle Wireframe", self.toggle_wireframe, # Can stay direct
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
+        )
+        self.increase_ambient_button = self.ui_manager.add_element(
+            Button(10, 220, 200, 30, "Increase Ambient", self.handle_increase_ambient, # Use handler
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
+        )
+        self.decrease_ambient_button = self.ui_manager.add_element(
+            Button(10, 260, 200, 30, "Decrease Ambient", self.handle_decrease_ambient, # Use handler
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
+        )
+        self.toggle_color_button = self.ui_manager.add_element(
+            Button(10, 300, 200, 30, "Toggle Color Mode", self.handle_toggle_color_mode, # Use handler
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
+        )
+        self.cycle_color_button = self.ui_manager.add_element(
+            Button(10, 340, 200, 30, "Cycle Mesh Color", self.handle_cycle_color, # Use handler
+                   font_family="Fonts/Silkscreen-Regular.ttf", color=(34, 221, 34, 255),
+                   font_size=16)
+        )
+
+    # --- UI Update Methods ---
+    def update_mesh_labels(self):
+        """Updates UI labels related to the mesh."""
+        mesh_type, subdivisions, num_vertices = self.mesh_manager.get_mesh_info()
+        self.mesh_label.text = f"Mesh: {mesh_type}"
+        self.subdivision_label.text = f"Subdivisions: {subdivisions}"
+        self.num_vertices_label.text = f"Vertices: {num_vertices}"
+
+    def update_lighting_labels(self):
+        """Updates UI labels related to lighting."""
+        self.ambient_label.text = f"Ambient: {self.lighting_manager.get_ambient_strength():.1f}"
+        self.color_mode_label.text = self.lighting_manager.get_color_mode_string()
+
+    # --- UI Handler Methods (Call managers and update UI) ---
+    def handle_next_mesh(self):
+        self.mesh_manager.next_mesh()
+        self.update_mesh_labels() # Update labels after action
+
+    def handle_increase_subdivision(self):
+        self.mesh_manager.increase_subdivision()
+        self.update_mesh_labels() # Update labels after action
+
+    def toggle_wireframe(self): # This directly modifies app state
         self.wireframe = not self.wireframe
         self.wireframe_button.text = "Disable Wireframe" if self.wireframe else "Enable Wireframe"
-    
-    def increase_ambient(self):
-        # Increase ambient light intensity (max 1.0)
-        self.ambient_strength = min(2.0, self.ambient_strength + 0.1)
-        self.ambient_label.text = f"Ambient: {self.ambient_strength:.1f}"
-    
-    def decrease_ambient(self):
-        # Decrease ambient light intensity (min 0.0)
-        self.ambient_strength = max(0.0, self.ambient_strength - 0.1)
-        self.ambient_label.text = f"Ambient: {self.ambient_strength:.1f}"
-    
-    def toggle_color_mode(self):
-        # Toggle between custom color and vertex colors
-        self.use_custom_color = not self.use_custom_color
-        self.color_mode_label.text = "Using Custom Color" if self.use_custom_color else "Using Vertex Colors"
-    
-    def cycle_color(self):
-        # Cycle through predefined colors
-        self.color_index = (self.color_index + 1) % len(self.color_presets)
-        self.mesh_color = self.color_presets[self.color_index]
-    
-    def load_mesh(self):
-        """Load the currently selected mesh with appropriate subdivisions"""
-        if self.current_mesh_type == "torus":
-            segments = 8 + 8 * self.mesh_subdivisions  # Scale segments with subdivision level
-            self.mesh = TorusGeometry(
-                major_radius=1.0, 
-                minor_radius=0.4, 
-                radial_segments=segments, 
-                tubular_segments=segments
-            )
-        else:
-            # For polyhedra, use the built-in subdivision algorithm
-            self.mesh = PolyhedronGeometry(
-                radius=1.0,
-                polyhedron_type=self.current_mesh_type,
-                subdivisions=self.mesh_subdivisions
-            )
-        
-        # Load mesh data to GPU
-        if not self.mesh.gpu_load():
-            print(f"Failed to load mesh: {self.current_mesh_type}")
-        self.num_vertices = self.mesh.num_vertices
-        self.num_vertices_label.text = f"Vertices: {self.num_vertices}"
 
+    def handle_increase_ambient(self):
+        self.lighting_manager.increase_ambient()
+        self.update_lighting_labels() # Update labels after action
+
+    def handle_decrease_ambient(self):
+        self.lighting_manager.decrease_ambient()
+        self.update_lighting_labels() # Update labels after action
+
+    def handle_toggle_color_mode(self):
+        self.lighting_manager.toggle_color_mode()
+        self.update_lighting_labels() # Update labels after action
+
+    def handle_cycle_color(self):
+        self.lighting_manager.cycle_color()
+        # No label update needed here unless mesh color itself was displayed
+
+    # --- Core Methods ---
     def initialize(self):
         print("OpenGL version:", glGetString(GL_VERSION).decode())
         print("GLSL version:", glGetString(GL_SHADING_LANGUAGE_VERSION).decode())
@@ -211,97 +163,96 @@ class LitMeshViewerApp(Window):
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_CULL_FACE)
         glCullFace(GL_BACK)
-        
-        # Create shader with our lit shaders
-        self.compile = CompileShader([("shaders/vert_shader_lit.vert", "vertex shader"), 
-                                     ("shaders/frag_shader_lit.frag", "fragment shader")])
-        self.shader = self.compile.get_program_id()
-        glUseProgram(self.shader)
-        
-        # Load initial mesh
-        self.load_mesh()
-        
-        # Set up projection for the camera
+        glClearColor(0.1, 0.1, 0.1, 1)
+
+        # Create shader and renderer
+        try:
+            self.compile = CompileShader([("shaders/vert_shader_lit.vert", "vertex shader"),
+                                         ("shaders/frag_shader_lit.frag", "fragment shader")])
+            shader_id = self.compile.get_program_id()
+            if not shader_id:
+                 raise RuntimeError("Failed to compile or link shaders.")
+            self.renderer = Renderer(shader_id)
+        except Exception as e:
+            print(f"Error initializing shader or renderer: {e}")
+            pg.quit()
+            quit()
+
+        # Initial mesh is loaded by MeshManager constructor, check if it succeeded
+        if self.mesh_manager.get_mesh() is None:
+             # MeshManager should have printed an error, but we double-check
+             raise RuntimeError("Failed to load initial mesh via MeshManager.")
+
+        # Set up camera projection and pass to renderer
         self.camera.setPerspective(45.0, self.width/self.height, 0.1, 50.0)
-
-        # Get uniform locations
-        self.proj_loc = glGetUniformLocation(self.shader, "projection")
-        self.view_loc = glGetUniformLocation(self.shader, "view")
-        self.model_loc = glGetUniformLocation(self.shader, "model")
-        
-        # Lighting uniform locations
-        self.ambient_str_loc = glGetUniformLocation(self.shader, "ambientStrength")
-        self.ambient_color_loc = glGetUniformLocation(self.shader, "ambientColor")
-        self.mesh_color_loc = glGetUniformLocation(self.shader, "meshColor")
-        self.use_custom_color_loc = glGetUniformLocation(self.shader, "useCustomColor")
-
-        # Set initial matrices
-        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, self.camera.projectionMatrix.astype(np.float32))
-        glUniformMatrix4fv(self.view_loc, 1, GL_TRUE, self.camera.viewMatrix.astype(np.float32))
+        if self.renderer:
+            self.renderer.set_projection_matrix(self.camera.projectionMatrix)
 
     def update(self):
-        super().update()
-        
-        # Update FPS display
+        super().update() # Handles input, UI updates, clock tick
+
         fps = self.clock.get_fps()
         self.fps_label.text = f"FPS: {fps:.1f}"
-        
-        # Calculate delta time for updates
-        delta_time = self.clock.get_time() / 1000.0  # Convert ms to seconds
-        
-        # Update camera controller based on input
+
+        delta_time = self.clock.get_time() / 1000.0
+
         self.camera_controller.update(self.input, delta_time)
-        
-        # Update rotation angle based on time
-        if self.theta >= 360:
-            self.theta = 0
-        self.theta = (self.theta + self.rotation_speed * delta_time)
+
+        if not self.paused:
+            if self.theta >= 360:
+                self.theta = 0
+            self.theta = (self.theta + self.rotation_speed * delta_time)
 
     def render_opengl(self):
-        glUseProgram(self.shader)
 
-        # Update time uniform
-        t = pg.time.get_ticks() / 1000.0  # Get time in seconds
-        time_loc = glGetUniformLocation(self.shader, "time")
-        if time_loc != -1:
-            glUniform1f(time_loc, t)
-        
-        # Update lighting uniforms
-        glUniform1f(self.ambient_str_loc, self.ambient_strength)
-        glUniform3f(self.ambient_color_loc, *self.ambient_color)
-        glUniform3f(self.mesh_color_loc, *self.mesh_color)
-        glUniform1i(self.use_custom_color_loc, int(self.use_custom_color))
+        current_mesh = self.mesh_manager.get_mesh() # Get mesh from manager
 
-        # Update camera view matrix and apply
+        if not self.renderer or not current_mesh:
+            return # Skip if renderer or mesh isn't ready
+
         self.camera.updateViewMatrix()
-        glUniformMatrix4fv(self.view_loc, 1, GL_TRUE, self.camera.viewMatrix.astype(np.float32))
-        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, self.camera.projectionMatrix.astype(np.float32))
 
-        # Create and apply model matrix with rotation
         model = Matrix44.from_y_rotation(np.radians(self.theta)) @ Matrix44.from_x_rotation(np.radians(self.theta * 0.5))
-        glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, model.astype(np.float32))
 
-        # Bind the mesh VAO
-        glBindVertexArray(self.mesh.vao_id)
-        
-        # Apply wireframe mode if enabled
-        if self.wireframe:
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-        
-        # Draw the mesh
-        glDrawElements(GL_TRIANGLES, self.mesh.num_vertices, GL_UNSIGNED_INT, None)
-        
-        # CRITICAL: Always restore polygon mode to GL_FILL when done
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-        
-        # CRITICAL: Disable face culling so UI will render properly
+        t = pg.time.get_ticks() / 1000.0
+
+        # Call the renderer, passing the lighting manager
+        self.renderer.render_mesh(
+            mesh=current_mesh,
+            camera=self.camera,
+            model_matrix=model,
+            lighting_manager=self.lighting_manager, # Pass the manager object
+            time=t,
+            wireframe=self.wireframe
+        )
+
+        # Disable face culling after rendering the scene for UI
         glDisable(GL_CULL_FACE)
+
+    def cleanup(self):
+        """Override cleanup to release resources before OpenGL context is destroyed."""
+        print("Cleaning up application resources...")
+        try:
+            # Clean up managers first (which handle GPU resources)
+            if hasattr(self, 'mesh_manager') and self.mesh_manager:
+                self.mesh_manager.cleanup()
+        except Exception as e:
+            print(f"Warning during cleanup: {e}")
         
-        # Unbind VAO and shader
-        glBindVertexArray(0)
-        glUseProgram(0)
+        # Call base class cleanup (which might destroy OpenGL context)
+        super().cleanup()
 
 
 if __name__ == '__main__':
-    app = LitMeshViewerApp()
-    app.run()
+    app = None # Define app outside try block for finally
+    try:
+        app = LitMeshViewerApp()
+        app.run()
+    except Exception as e:
+        print(f"An error occurred during runtime: {e}")
+        import traceback
+        traceback.print_exc() # Print detailed traceback
+    finally:
+        # Ensure cleanup runs even if errors occur during run()
+        if app:
+            app.cleanup() # Explicitly call cleanup

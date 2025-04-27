@@ -239,19 +239,16 @@ class MeshData:
         glVertexAttribPointer(location, components, GL_FLOAT, False, 0, None)
         
     def del_buffers(self) -> None:
-        """Delete all GPU buffers associated with this mesh."""
+        """Delete OpenGL buffers safely if they exist."""
         try:
-            # Delete VBOs
-            if self.vbo_id_list:
+            # Check if OpenGL functions are available before calling them
+            if bool(glDeleteBuffers) and hasattr(self, 'vbo_id_list') and self.vbo_id_list:
                 glDeleteBuffers(len(self.vbo_id_list), self.vbo_id_list)
                 self.vbo_id_list = []
-            
-            # Delete VAO
-            if self.vao_id is not None:
+                
+            if bool(glDeleteVertexArrays) and hasattr(self, 'vao_id') and self.vao_id:
                 glDeleteVertexArrays(1, [self.vao_id])
                 self.vao_id = None
-                
-            logger.log_message("OpenGL buffers successfully deleted", level="INFO")
         except Exception as e:
-            logger.log_error(e, context="Error deleting OpenGL buffers")
+            print(f"Warning: Error during buffer cleanup: {e}")
 
