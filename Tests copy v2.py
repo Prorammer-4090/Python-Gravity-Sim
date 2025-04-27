@@ -15,26 +15,25 @@ from helpers.object3D import Object3D
 VERTEX_SHADER = """
 #version 330 core
 layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 color;
+layout(location = 1) in vec3 color; 
 
 uniform mat4 model;
 uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 projection; 
 
 out vec3 fragColor;
 
 void main() {
+    gl_Position = projection * view * model * vec4(position, 1.0); 
     fragColor = color;
-    gl_Position = projection * view * model * vec4(position, 1.0);
 }
 """
 
 # Fragment shader
 FRAGMENT_SHADER = """
 #version 330 core
-in vec3 fragColor;
+in vec3 fragColor; 
 out vec4 outColor;
-
 void main() {
     outColor = vec4(fragColor, 1.0);
 }
@@ -50,7 +49,7 @@ class Cubeapp(Window):
         self.rotation_speed = 60.0
 
         # Create the cube object
-        self.cube = Object3D()  # Cube is initially at origin with identity transform
+        self.cube = Object3D()
 
         # Initialize Camera and Controller
         self.camera_controller = CameraController(unitsPerSecond=2, degreesPerSecond=60)
@@ -87,7 +86,6 @@ class Cubeapp(Window):
         self.reset = True
         print("Simulation reset")
             
-
     def initialize(self):
         print("OpenGL version:", glGetString(GL_VERSION).decode())
         print("GLSL version:", glGetString(GL_SHADING_LANGUAGE_VERSION).decode())
@@ -95,7 +93,7 @@ class Cubeapp(Window):
         glEnable(GL_DEPTH_TEST)
         
         # Create shader
-        glBindVertexArray(glGenVertexArrays(1))  # Required for core profile
+        glBindVertexArray(glGenVertexArrays(1))
         self.shader = compileProgram(
             compileShader(VERTEX_SHADER, GL_VERTEX_SHADER),
             compileShader(FRAGMENT_SHADER, GL_FRAGMENT_SHADER)
@@ -142,7 +140,7 @@ class Cubeapp(Window):
 
         self.index_count = len(indices)
 
-        # Set up projection matrix using the Camera instance
+        # Set up projection matrix
         self.camera.setPerspective(aspectRatio=800 / 600)
 
         # Get uniform locations
@@ -150,23 +148,18 @@ class Cubeapp(Window):
         self.view_loc = glGetUniformLocation(self.shader, "view")
         self.model_loc = glGetUniformLocation(self.shader, "model")
 
-        # --- Debugging Initial State ---
-        print("--- Initial Setup ---")
-        print("Controller Initial Transform BEFORE setting position:\n", self.camera_controller.transform)
-        self.camera_controller.setPosition([0, 0, 5])
-        print("Controller Initial Transform AFTER setting position:\n", self.camera_controller.transform)
-        # Ensure camera inherits controller's position by updating its view matrix
+        # Verify uniform locations
+        if -1 in [self.proj_loc, self.view_loc, self.model_loc]:
+            print("ERROR: One or more uniform locations not found!")
+
+        # Ensure camera inherits controller's position
         self.camera.updateViewMatrix()
-        print("Camera Initial World Matrix (should match controller):\n", self.camera.getWorldMatrix())
-        print("Camera Initial View Matrix (inverse of world):\n", self.camera.viewMatrix)
-        print("Camera Projection Matrix:\n", self.camera.projectionMatrix)
-        # --- End Debugging ---
 
-        # Set initial projection and view matrices from the camera
-        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, self.camera.projectionMatrix)
-        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.camera.viewMatrix) # Use the updated view matrix
+        # Set initial matrices
+        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, self.camera.projectionMatrix)
+        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.camera.viewMatrix)
+        self.check_gl_error("After initial matrix uploads")
         
-
     def update(self):
         super().update()
         
@@ -187,54 +180,48 @@ class Cubeapp(Window):
         if hasattr(self, 'paused') and self.paused:
             return
         if self.reset:
-            self.theta = 0
-            self.cube.transform = Transform.identity()  # Reset cube's transform too
+            self.cube.transform = Transform.identity()
             self.reset = False
 
-        # Update rotation angle based on time and rotation speed (degrees per second)
-        if self.theta >= 360:
+        # Update rotation angle based on time
+        if self.theta > 360:
             self.theta = 0
         self.theta = (self.theta + self.rotation_speed * delta_time)
 
-        # Apply rotation directly to the cube object's transform
-        rot_y = Transform.rotation(0, self.theta, 0)  # Rotation around Y
-        rot_x = Transform.rotation(self.theta * 0.3, 0, 0)  # Rotation around X
-        self.cube.transform = rot_y @ rot_x  # Overwrites previous transform
-        
-        #print("Camera Projection:\n", self.camera.projectionMatrix)
-
-        pass # Keep the rest of the update logic
+        # Apply rotation around Y and X axes to the cube
+        rot_x = Transform.rotation(0, self.theta, 0)
+        rot_z = Transform.rotation(self.theta, 0, 0)
+        self.cube.transform = rot_x @ rot_z
 
     def render_opengl(self):
-        # Explicitly clear buffers and set viewport at the start of rendering this specific window content
-        # Set a background color (e.g., dark grey)
+        # Clear buffers and set viewport
         glClearColor(0.1, 0.1, 0.1, 1.0)
-        # Clear color and depth buffers
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        # Ensure viewport matches window dimensions
         glViewport(0, 0, self.width, self.height)
 
-        # Now proceed with your specific rendering for this scene
         glUseProgram(self.shader)
+        self.check_gl_error("After glUseProgram")
 
-        self.camera.updateViewMatrix() # Update based on controller movement
+        self.camera.updateViewMatrix()
 
-        # Apply view matrix from the camera (Column-Major)
-        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.camera.viewMatrix)
-        # Apply projection matrix (Column-Major)
-        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, self.camera.projectionMatrix)
-
-        # Get the cube's world matrix to use as the model matrix
+        # Apply matrices
+        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, self.camera.projectionMatrix)
+        glUniformMatrix4fv(self.view_loc, 1, GL_TRUE, self.camera.viewMatrix)
+        
         model_matrix = self.cube.getWorldMatrix()
-
-        # Pass the model matrix (Column-Major) to OpenGL
-        glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, model_matrix)
-
+        glUniformMatrix4fv(self.model_loc, 1, GL_TRUE, model_matrix)
+        
         # Draw the cube
         glBindVertexArray(self.vao)
         glDrawElements(GL_TRIANGLES, self.index_count, GL_UNSIGNED_INT, None)
+        self.check_gl_error("After glDrawElements")
+        
+        glBindVertexArray(0)
 
-        # Note: UI rendering likely happens after this in the base Window class's main render loop
+    def check_gl_error(self, stage=""):
+        err = glGetError()
+        if err != GL_NO_ERROR:
+            print(f"OpenGL Error at {stage}: {err}")
 
 
 if __name__ == '__main__':

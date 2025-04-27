@@ -68,7 +68,7 @@ class CameraController(Object3D):
        """
        # Calculate frame-adjusted movement and rotation amounts
        moveAmount = self.unitsPerSecond * deltaTime
-       rotateAmount = self.degreesPerSecond * (pi / 180) * deltaTime
+       rotateAmount = self.degreesPerSecond  * deltaTime
 
        # Process movement inputs
        if inputObject.key_held(self.KEY_MOVE_FORWARDS):
@@ -86,13 +86,13 @@ class CameraController(Object3D):
            
        # Process rotation inputs
        if inputObject.key_held(self.KEY_TURN_RIGHT):
-           self.rotateY(-rotateAmount)
-       if inputObject.key_held(self.KEY_TURN_LEFT):
            self.rotateY(rotateAmount)
+       if inputObject.key_held(self.KEY_TURN_LEFT):
+           self.rotateY(-rotateAmount)
        if inputObject.key_held(self.KEY_LOOK_UP):
-           self.lookAttachment.rotateX(rotateAmount)
-       if inputObject.key_held(self.KEY_LOOK_DOWN):
            self.lookAttachment.rotateX(-rotateAmount)
+       if inputObject.key_held(self.KEY_LOOK_DOWN):
+           self.lookAttachment.rotateX(rotateAmount)
 
    def updateMouseControls(self, input_handler):
        """
@@ -115,12 +115,12 @@ class CameraController(Object3D):
                
                if dx != 0:  # Only apply horizontal rotation if there's movement
                    # Apply horizontal rotation to camera body
-                   self.rotateY(-dx * self.mouseSensitivity * (pi / 180))
+                   self.rotateY(-dx * self.mouseSensitivity)
                
                if dy != 0:  # Only apply vertical rotation if there's movement
                    # Apply vertical rotation to pitch control
                    # Clamp vertical rotation to avoid flipping
-                   self.lookAttachment.rotateX(-dy * self.mouseSensitivity * (pi / 180))
+                   self.lookAttachment.rotateX(-dy * self.mouseSensitivity)
        else:
            self.is_dragging = False  # End drag when button released
 

@@ -1,0 +1,19 @@
+=== Error Log: 2025-04-27 10:09:01 ===
+
+Location: core.window.run:251
+Context: Fatal error in run method
+Error Type: ShaderValidationError
+Error Message: Validation failure (np.int32(0)): b'Validation Failed: No vertex array object bound.\n'
+
+Traceback:
+Traceback (most recent call last):
+  File "/Users/jethroaiyesan/Programming/Python-Gravity-Sim/core/window.py", line 192, in run
+    self.initialize()
+  File "/Users/jethroaiyesan/Programming/Python-Gravity-Sim/Tests copy v2.py", line 102, in initialize
+    self.shader = compileProgram(
+                  ^^^^^^^^^^^^^^^
+  File "/Users/jethroaiyesan/Programming/Python-Gravity-Sim/.venv/lib/python3.12/site-packages/OpenGL/GL/shaders.py", line 211, in compileProgram
+    program.check_validate()
+  File "/Users/jethroaiyesan/Programming/Python-Gravity-Sim/.venv/lib/python3.12/site-packages/OpenGL/GL/shaders.py", line 109, in check_validate
+    raise ShaderValidationError(
+OpenGL.GL.shaders.ShaderValidationError: Validation failure (np.int32(0)): b'Validation Failed: No vertex array object bound.\n'

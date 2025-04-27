@@ -52,7 +52,7 @@ class Transform:
         
         try:
             # Add .T to convert Pyrr's row-major to column-major
-            return pyrr.matrix44.create_from_eulers(np.array([angx, angy, angz]), dtype=np.float32).T
+            return pyrr.matrix44.create_from_eulers(np.array([angx, angz, angy]), dtype=np.float32).T
         except Exception as e:
             logger.log_error(e, f"Failed to create rotation matrix with angles ({x}, {y}, {z}) degrees")
             raise
