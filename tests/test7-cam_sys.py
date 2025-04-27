@@ -181,6 +181,7 @@ class Cubeapp(Window):
             return
         if self.reset:
             self.cube.transform = Transform.identity()
+            self.theta = 0
             self.reset = False
 
         # Update rotation angle based on time

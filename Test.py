@@ -6,6 +6,10 @@ from core.compile_shader import CompileShader
 from pyrr import Matrix44, Vector3
 from core.window import Window
 from core.ui import Button, Label
+# Import camera system
+from helpers.camera import Camera
+from helpers.cameraController import CameraController
+from helpers.transform import Transform
 
 # Import our mesh classes
 from meshes.polyhedronGeo import PolyhedronGeometry
@@ -23,9 +27,13 @@ class LitMeshViewerApp(Window):
         self.height = self.screen_size[1]
         
         self.theta = 0
-        self.camera_pos = np.array([0.0, 0.0, 5.0])
-        self.target_pos = np.array([0.0, 0.0, 0.0])
         self.rotation_speed = 30.0  # Degrees per second
+        
+        # Initialize Camera and Controller (replacing manual camera position)
+        self.camera_controller = CameraController(unitsPerSecond=2, degreesPerSecond=60)
+        self.camera = Camera(aspectRatio=self.width / self.height)
+        self.camera_controller.setPosition([0, 0, 5])  # Set initial position
+        self.camera_controller.add(self.camera)
         
         # Active mesh type
         self.current_mesh_type = "icosahedron"
@@ -154,7 +162,7 @@ class LitMeshViewerApp(Window):
     
     def increase_ambient(self):
         # Increase ambient light intensity (max 1.0)
-        self.ambient_strength = min(1.0, self.ambient_strength + 0.1)
+        self.ambient_strength = min(2.0, self.ambient_strength + 0.1)
         self.ambient_label.text = f"Ambient: {self.ambient_strength:.1f}"
     
     def decrease_ambient(self):
@@ -213,22 +221,8 @@ class LitMeshViewerApp(Window):
         # Load initial mesh
         self.load_mesh()
         
-        # Get dimensions from pygame's display surface if needed
-        if not hasattr(self, 'width') or not hasattr(self, 'height'):
-            surface = pg.display.get_surface()
-            if surface:
-                self.width, self.height = surface.get_size()
-            else:
-                # Fallback to default values
-                self.width, self.height = 800, 600
-        
-        # Set up projection and view matrices
-        self.proj = Matrix44.perspective_projection(45, self.width/self.height, 0.1, 50.0)
-        self.view = Matrix44.look_at(
-            eye=Vector3(self.camera_pos),
-            target=Vector3(self.target_pos),
-            up=Vector3([0.0, 1.0, 0.0])
-        )
+        # Set up projection for the camera
+        self.camera.setPerspective(45.0, self.width/self.height, 0.1, 50.0)
 
         # Get uniform locations
         self.proj_loc = glGetUniformLocation(self.shader, "projection")
@@ -241,9 +235,9 @@ class LitMeshViewerApp(Window):
         self.mesh_color_loc = glGetUniformLocation(self.shader, "meshColor")
         self.use_custom_color_loc = glGetUniformLocation(self.shader, "useCustomColor")
 
-        # Set initial projection matrix
-        glUniformMatrix4fv(self.proj_loc, 1, GL_FALSE, self.proj.astype(np.float32))
-        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.view.astype(np.float32))
+        # Set initial matrices
+        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, self.camera.projectionMatrix.astype(np.float32))
+        glUniformMatrix4fv(self.view_loc, 1, GL_TRUE, self.camera.viewMatrix.astype(np.float32))
 
     def update(self):
         super().update()
@@ -252,50 +246,15 @@ class LitMeshViewerApp(Window):
         fps = self.clock.get_fps()
         self.fps_label.text = f"FPS: {fps:.1f}"
         
-        # Calculate camera movement vectors
-        front_vec = self.target_pos - self.camera_pos
-        front_vec = front_vec / np.linalg.norm(front_vec)  # Normalize
+        # Calculate delta time for updates
+        delta_time = self.clock.get_time() / 1000.0  # Convert ms to seconds
         
-        # Calculate right vector (perpendicular to front and world up)
-        world_up = np.array([0.0, 1.0, 0.0])
-        right_vec = np.cross(front_vec, world_up)
-        right_vec = right_vec / np.linalg.norm(right_vec)  # Normalize
+        # Update camera controller based on input
+        self.camera_controller.update(self.input, delta_time)
         
-        # Handle camera movement
-        keys = pg.key.get_pressed()
-        speed = 0.1
-        movement = np.zeros(3)
-        
-        if keys[pg.K_a]:
-            movement -= right_vec * speed
-        if keys[pg.K_d]:
-            movement += right_vec * speed
-        if keys[pg.K_w]:
-            movement += front_vec * speed
-        if keys[pg.K_s]:
-            movement -= front_vec * speed
-        if keys[pg.K_q]:
-            # Move up
-            movement += np.array([0, 1, 0]) * speed
-        if keys[pg.K_e]:
-            # Move down
-            movement += np.array([0, -1, 0]) * speed
-            
-        # Apply movement to both camera and target
-        self.camera_pos += movement
-        self.target_pos += movement
-        
-        # Update view matrix based on camera position
-        self.view = Matrix44.look_at(
-            eye=Vector3(self.camera_pos),
-            target=Vector3(self.target_pos),
-            up=Vector3([0.0, 1.0, 0.0])
-        )
-        
-        # Update rotation angle based on time and rotation speed (degrees per second)
-        delta_time = 1.0 / max(self.clock.get_fps(), 1.0)  # Get seconds per frame, avoid division by zero
-        if self.theta == 360:
-            self.theta == 0
+        # Update rotation angle based on time
+        if self.theta >= 360:
+            self.theta = 0
         self.theta = (self.theta + self.rotation_speed * delta_time)
 
     def render_opengl(self):
@@ -313,8 +272,10 @@ class LitMeshViewerApp(Window):
         glUniform3f(self.mesh_color_loc, *self.mesh_color)
         glUniform1i(self.use_custom_color_loc, int(self.use_custom_color))
 
-        # Apply view matrix
-        glUniformMatrix4fv(self.view_loc, 1, GL_FALSE, self.view.astype(np.float32))
+        # Update camera view matrix and apply
+        self.camera.updateViewMatrix()
+        glUniformMatrix4fv(self.view_loc, 1, GL_TRUE, self.camera.viewMatrix.astype(np.float32))
+        glUniformMatrix4fv(self.proj_loc, 1, GL_TRUE, self.camera.projectionMatrix.astype(np.float32))
 
         # Create and apply model matrix with rotation
         model = Matrix44.from_y_rotation(np.radians(self.theta)) @ Matrix44.from_x_rotation(np.radians(self.theta * 0.5))
