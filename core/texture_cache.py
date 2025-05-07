@@ -1,32 +1,34 @@
-from .texture import Texture  # Use relative import if in the same package
+from .texture import Texture
 from typing import Dict, Optional
-from .logger import logger  # Import the global logger instance
+from .logger import logger
 
-DEFAULT_TEXTURE_PATH = "textures/default_texture.png"  # Renamed for clarity
+DEFAULT_TEXTURE_PATH = "textures/default_texture.png"
 
 class TextureCache():
+    _instance: Optional['TextureCache'] = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            logger.log_message("Creating TextureCache singleton instance", level="INFO")
+            cls._instance = super(TextureCache, cls).__new__(cls)
+            # Initialize the instance attributes only once
+            cls._instance.textures = {}
+            
+            try:
+                # Call _load_texture on the instance, not the class
+                default_tex = cls._instance._load_texture(DEFAULT_TEXTURE_PATH)
+                if default_tex is None or default_tex.texture_id is None:
+                    logger.log_message(f"Critical: Default texture '{DEFAULT_TEXTURE_PATH}' failed to load properly during cache initialization.", level="ERROR")
+                else:
+                    logger.log_message(f"Default texture '{DEFAULT_TEXTURE_PATH}' loaded successfully.", level="INFO")
+            except Exception as e:
+                logger.log_error(e, context=f"Unexpected error loading default texture '{DEFAULT_TEXTURE_PATH}' during cache init")
+        return cls._instance
     
     def __init__(self):
-        """Initializes the texture cache."""
-        self.textures: Dict[str, Texture] = {}
-        logger.log_message("Initializing TextureCache.", level="INFO")
-        # Load default texture lazily or eagerly depending on needs
-        # Eager loading:
-        try:
-            default_tex = self._load_texture(DEFAULT_TEXTURE_PATH)
-            if default_tex is None or default_tex.texture_id is None:
-                # _load_texture handles logging the specific load error
-                logger.log_message(f"Critical: Default texture '{DEFAULT_TEXTURE_PATH}' failed to load properly during cache initialization.", level="ERROR")
-                # Depending on the application, you might want to raise an exception here
-                # raise RuntimeError("Failed to load essential default texture.")
-            else:
-                logger.log_message(f"Default texture '{DEFAULT_TEXTURE_PATH}' loaded successfully.", level="INFO")
+        # The initialization is handled in __new__ to ensure it runs only once
+        pass
 
-        except Exception as e:
-            # Catch any unexpected errors during the initial load
-            logger.log_error(e, context=f"Unexpected error loading default texture '{DEFAULT_TEXTURE_PATH}' during cache init")
-            # Handle this critical failure appropriately (e.g., exit, raise)
-            
     def _load_texture(self, texture_path: str) -> Optional[Texture]:
         """Loads a texture and adds it to the cache. Internal use. Returns None on failure."""
         if texture_path not in self.textures:

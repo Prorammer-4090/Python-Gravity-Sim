@@ -8,7 +8,7 @@ from core.window import Window
 from core.ui import Button, Label
 # Import camera system
 from helpers.camera import Camera
-from helpers.cameraController import CameraController
+from helpers.camera_controls import CameraControls
 from helpers.transform import Transform
 # Import managers and renderer
 from helpers.mesh_manager import MeshManager       # Import MeshManager
@@ -27,7 +27,7 @@ class LitMeshViewerApp(Window):
         self.rotation_speed = 30.0
 
         # Camera setup (remains the same)
-        self.camera_controller = CameraController(unitsPerSecond=2, degreesPerSecond=60)
+        self.camera_controller = CameraControls(unitsPerSecond=2, degreesPerSecond=60)
         self.camera = Camera(aspectRatio=self.width / self.height)
         self.camera_controller.setPosition([0, 0, 5])
         self.camera_controller.add(self.camera)

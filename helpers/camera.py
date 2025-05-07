@@ -1,10 +1,10 @@
 import numpy as np
 import pygame
 from helpers.transform import Transform
-from helpers.object3D import Object3D
+from core.entity import Entity
 from numpy.linalg import inv
 
-class Camera(Object3D):
+class Camera(Entity):
     """
     A 3D Camera that allows for viewing of the 3D scene using a perspective projection and view transformations. it includes 
     for tracking camera movement and generating rays for mouse interaction.
@@ -27,9 +27,13 @@ class Camera(Object3D):
 
     def __init__(self, angleOfView=60, aspectRatio=1, near=0.1, far=1000):
         super().__init__()
+        self.aspect_ratio = aspectRatio
+        self.fov = angleOfView
+        self.near = near
+        self.far = far
         # Create projection matrix
         self.projectionMatrix = Transform.perspective(
-            angleOfView, aspectRatio, near, far)
+            self.fov, self.aspect_ratio, self.near, self.far)
         self.viewMatrix = Transform.identity()
         
         # Initialize camera state tracking variables
@@ -74,6 +78,9 @@ class Camera(Object3D):
             self.last_movement_time = pygame.time.get_ticks()
             self.last_position = self.position.copy()
             self.last_orientation = self.orientation.copy()
+            
+    def update_projection_mat(self, width, height):
+        self.projectionMatrix = Transform.perspective( self.fov, width/height, self.near, self.far)
 
     def is_moving(self):
         """

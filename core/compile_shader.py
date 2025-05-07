@@ -1,6 +1,6 @@
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
-from core.utils import Utils
+from utils.utils import Utils
 from core.logger import logger
 
 class CompileShader:
@@ -15,15 +15,18 @@ class CompileShader:
         utils = Utils()
         self.shader_list = []
         
-        # Assuming shader_list contains tuples of (file_path, shader_type)
+        # if the “path” contains GLSL source, use it directly, otherwise read a file
         for shader_path, shader_type in shader_list:
             try:
-                shader_source = utils.readFiles(shader_path)
+                if isinstance(shader_path, str) and "\n" in shader_path:
+                    shader_source = shader_path
+                else:
+                    shader_source = utils.readFiles(shader_path)
                 self.shader_list.append((shader_source, shader_type))
             except Exception as e:
-                logger.log_error(e, f"Failed to read shader file: {shader_path}")
+                logger.log_error(e, f"Failed to read shader file or source: {shader_path}")
                 raise
-            
+
         self.link_program()
     
     def init_shader(self, shader_source, shader_type):

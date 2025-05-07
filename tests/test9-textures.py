@@ -7,9 +7,9 @@ from core.window import Window
 from core.ui import Button, Label
 import ctypes
 from helpers.camera import Camera
-from helpers.cameraController import CameraController
+from helpers.camera_controls import CameraControls
 from helpers.transform import Transform
-from helpers.object3D import Object3D
+from core.entity import Entity
 from core.texture_cache import TextureCache
 from core.logger import logger
 
@@ -61,10 +61,10 @@ class Cubeapp(Window):
         self.rotation_speed = 60.0
 
         # Create the cube object
-        self.cube = Object3D()
+        self.cube = Entity()
 
         # Initialize Camera and Controller
-        self.camera_controller = CameraController(unitsPerSecond=2, degreesPerSecond=60)
+        self.camera_controller = CameraControls(unitsPerSecond=2, degreesPerSecond=60)
         self.camera = Camera(aspectRatio=800 / 600)
         self.camera_controller.setPosition([0, 0, 5])
         self.camera_controller.add(self.camera)

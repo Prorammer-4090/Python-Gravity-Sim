@@ -23,7 +23,7 @@ class MeshData:
             "color": 1,
             "v_norm": 2,
             "f_norm": 3,
-            "v_uv": 4
+            "v_uv": 2 
         }
 
     def add_attr(self, data_type: Union[int, str], variable_name: str, data: List) -> None:
@@ -56,6 +56,25 @@ class MeshData:
                 self.num_vertices = len(some_attr[1])
             else:
                 self.num_vertices = 0
+                
+    def get_triangles(self):
+        """
+        Retrieves triangles from the vertex data by grouping consecutive vertices.
+
+        Returns:
+            list: A list of triangles, where each triangle is a tuple of three vertices.
+        """
+        vertex_positions = self.attributes["v_pos"].data
+        triangles = []
+
+        # Group every 3 vertices to form triangles.
+        for i in range(0, len(vertex_positions), 3):
+            v0 = vertex_positions[i]
+            v1 = vertex_positions[i + 1]
+            v2 = vertex_positions[i + 2]
+            triangles.append((v0, v1, v2))
+
+        return triangles
                 
     def apply_mat(self, matrix: np.ndarray, variable_name: str = "v_pos") -> None:
         """
